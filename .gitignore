@@ -50,5 +50,8 @@ next-env.d.ts
 .worktrees
 
 # Tools
-.claude
 .scratch/
+
+# Local-only Claude state (skills + settings.json are tracked)
+.claude/local/
+.claude/sessions/
