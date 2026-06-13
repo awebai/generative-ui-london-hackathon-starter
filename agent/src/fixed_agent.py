@@ -28,6 +28,7 @@ from langchain_google_genai import ChatGoogleGenerativeAI
 from langgraph.checkpoint.memory import MemorySaver
 
 from src.catalog import CATALOG_ID, CATALOG_PROMPT
+from src.present import present_to_human
 
 SCHEMA_DIR = Path(__file__).parent / "a2ui" / "schemas"
 DASHBOARD_SCHEMA = a2ui.load_schema(SCHEMA_DIR / "dashboard.json")
@@ -171,6 +172,10 @@ When the user (or a chip click) asks to change scope:
 
 - Render the dashboard whenever the user attaches a PDF (initial), asks
   to re-render in any way, or clicks a chip.
+- If the user explicitly asks to share, present, or make a link for the
+  dashboard, first call `render_dashboard` if a fresh surface is needed,
+  then call `present_to_human(surface_or_doc=<the exact JSON string returned
+  by render_dashboard>)` once. Return only the URL.
 - Call `render_dashboard` AT MOST ONCE per turn. Never twice.
 - Use ONLY numbers that actually appear in the document.
 - If the user asks an analytical question that does NOT require a layout
@@ -221,7 +226,7 @@ def build_fixed_agent():
 
     return create_agent(
         model=_build_model(),
-        tools=[render_dashboard],
+        tools=[render_dashboard, present_to_human],
         # CopilotKitMiddleware forwards frontend tools + agent context (e.g.
         # useAgentContext payloads) to the LLM.
         middleware=[CopilotKitMiddleware()],
