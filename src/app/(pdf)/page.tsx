@@ -51,7 +51,7 @@ const WRITE_PRESENT_JSON = `cat > present.json <<'JSON'
 {"artifact_id":"<artifact_id from previous response>","version":1}
 JSON`;
 const MINT_PRESENT = `aw id request POST "$ATEXT_ORIGIN/v1/present" --team-auth --raw --body-file present.json`;
-const OPEN_PRESENT = "open http://127.0.0.1:3000/present/<token>";
+const OPEN_PRESENT = 'open "$ATEXT_ORIGIN/present/<token>"';
 
 const ALL_COMMANDS = [
   SET_ORIGIN,
