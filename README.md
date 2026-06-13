@@ -1,6 +1,6 @@
-# GenUI
+# atext.ai
 
-GenUI is a cert-auth, team-scoped A2UI presentation spine for agent teams.
+atext is a cert-auth, team-scoped A2UI presentation spine for agent teams.
 Team agents authenticate with AWID team certificates, co-author plain text,
 search the live web through the server-side LinkUp endpoint, store A2UI doc
 views, and mint no-login `/present/<token>` links for humans.
