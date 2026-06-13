@@ -46,12 +46,14 @@ in two bodies:
 - **User agents** — the team's working members (Claude Code, Codex, Pi),
   each with its own AWID team certificate. They do the team's work and
   decide *when* their human should be shown something.
-- **The concierge** — a **per-team member whose body is the LangGraph/Gemini
-  generative-UI agent** (this repo's `agent/`). It holds its **own AWID
-  team-member identity and certificate** and specializes in composing
-  grounded A2UI surfaces and presenting them. User agents delegate
-  presentation to it ("make a cited dashboard of X and present it to my
-  human").
+- **The concierge** — a **per-team member whose body is the LangGraph
+  agent** (this repo's `agent/`), specialized as a **web-research agent**:
+  its tool is **LinkUp** (live web search), and it turns search results
+  into cited A2UI surfaces that it presents via a safe link. It holds its
+  **own AWID team-member identity and certificate**. User agents delegate
+  research and presentation to it ("research X and show my human"). LinkUp
+  lives here, in the deployed `agent/` — not in `server/`; the server has
+  no search endpoint.
 
 The concierge is not a privileged second class: it authenticates with a
 team certificate like any member (`aw id request --team-auth`) and is
@@ -100,15 +102,59 @@ genui never holds controller or namespace keys; AWID remains authoritative
 for team keys and revocation. Stored text and A2UI envelopes are
 server-readable (no E2E-encryption claim).
 
+## Team isolation (hard invariant)
+
+Artifacts and documents are strictly team-scoped. It is **impossible for
+one team to read, list, present, or otherwise reach another team's
+artifacts.** Enforced at every layer:
+
+1. **Per-team concierge identity.** Each team has its own concierge — a
+   distinct AWID member identity of that team, holding only that team's
+   certificate. It authenticates with its team's cert, so its request
+   Principal's `team_id` is its own team; it is structurally incapable of
+   producing a valid envelope for another team (it does not hold another
+   team's key). One concierge process must **never** hold multiple teams'
+   member signing keys — per-team key isolation.
+2. **Team stamped from the certificate, never the body.** On every write
+   (documents, artifacts, present-link mint) the stored `team_id` comes
+   from the verified Principal, never from request fields. A request
+   cannot name another team to escape its scope.
+3. **Cert-auth reads/lists scoped to the Principal's team.** Artifact and
+   document get/list filter by `team_id = principal.team_id`. A member of
+   team B requesting team A's `artifact_id` — even if guessed — gets 404,
+   never the artifact.
+4. **Present-link mint verifies ownership.** `POST /v1/present` MUST verify
+   `artifact.team_id == principal.team_id` before minting; minting a link
+   for an artifact the caller's team does not own fails 404. This is the
+   critical new check — a present token can only ever be created by the
+   artifact's own team.
+5. **Public present leaks nothing.** `GET /present/{token}` resolves only
+   the single artifact version the token was bound to (verified team-owned
+   at mint), returns only `{a2ui, expires_at}`, and 404s on
+   unknown/expired/revoked — no `team_id`, no `artifact_id`, no existence
+   signal. The public link is the owner sharing one surface with its own
+   human; it is account-less and team-less by design and exposes nothing
+   else.
+
+**Required negative tests (green before merge):** team B reading team A's
+`artifact_id` → 404; team B's list never includes team A's artifacts; team
+B's concierge minting a present link for team A's `artifact_id` → 404; a
+write naming another team in the body lands in the caller's team (body
+ignored); public `/present` returns only the bound artifact with no
+team-identifying fields. These run as real cross-team e2e cases with two
+distinct provisioned teams.
+
 ## Components and processes
 
 - **`server/`** — the atext spine as a standalone FastAPI relying party
   (Python 3.12, pgdbm, the copied `auth.py`). Owns documents, versions,
   A2UI artifacts, and presentation links. Cert-auth on the authoring side;
   capability-token on the public `/present` read side.
-- **`agent/`** — the existing LangGraph/FastAPI AG-UI agent, plus a
-  `present_to_human` tool that POSTs a generated surface to `server/`,
-  mints a link, and returns the safe URL.
+- **`agent/`** — the LangGraph/FastAPI AG-UI agent, **reshaped from the
+  starter's pdf-analyst demo into the team's LinkUp web-research
+  concierge** (pdf-analyst content removed). Its LinkUp tool searches the
+  live web; it composes a cited A2UI surface and calls `present_to_human`
+  to POST it to `server/`, mint a link, and return the safe URL.
 - **`src/`** — the existing Next.js + CopilotKit frontend, plus a
   `/present/[token]` route that fetches an artifact by token and renders
   it with `@copilotkit/a2ui-renderer`. The existing chat/canvas demo stays
