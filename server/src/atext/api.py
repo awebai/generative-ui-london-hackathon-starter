@@ -22,6 +22,7 @@ from atext.models import (
     DocumentSummary,
     DocumentVersion,
     PresentationResponse,
+    PublicPresentationResponse,
 )
 from atext.repository import (
     append_version,
@@ -140,19 +141,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         actor: Annotated[Principal, Depends(principal)],
         database: Annotated[AsyncDatabaseManager, Depends(db)],
     ) -> dict:
-        raw_payload = await request.json()
-        if not isinstance(raw_payload, dict):
-            raise HTTPException(status_code=400, detail="Artifact envelope must be a JSON object")
-        if "envelope" in raw_payload:
-            payload = CreateArtifactRequest.model_validate(raw_payload)
-            slug = payload.slug
-            kind = payload.kind
-            envelope = payload.envelope
-        else:
-            slug = None
-            kind = "a2ui"
-            envelope = raw_payload
-        artifact = await create_artifact(database, principal=actor, kind=kind, slug=slug, envelope=envelope)
+        payload = CreateArtifactRequest.model_validate(await request.json())
+        artifact = await create_artifact(database, principal=actor, kind="a2ui", slug=payload.slug, a2ui=payload.a2ui)
         return {"artifact_id": artifact["artifact_id"], "version": artifact["current_version"]}
 
     @app.get("/v1/artifacts", response_model=list[ArtifactSummary])
@@ -195,7 +185,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         await revoke_presentation_link(database, principal=actor, token=token)
         return {"revoked": True}
 
-    @app.get("/present/{token}")
+    @app.get("/present/{token}", response_model=PublicPresentationResponse)
     async def present_route(
         token: str,
         database: Annotated[AsyncDatabaseManager, Depends(db)],

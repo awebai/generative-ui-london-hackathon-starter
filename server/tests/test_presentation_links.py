@@ -6,11 +6,12 @@ from uuid import uuid4
 
 import pytest
 from fastapi import HTTPException
+from pydantic import ValidationError
 
 from atext.auth import Principal
 from atext.config import Settings
+from atext.models import CreateArtifactRequest
 from atext.repository import (
-    create_artifact,
     get_presented_envelope,
     mint_presentation_link,
     revoke_presentation_link,
@@ -38,6 +39,7 @@ class FakeDB:
         self.inserted: dict[str, Any] | None = None
         self.revoked = False
         self.presented: dict[str, Any] = {"a2ui_operations": [{"createSurface": {"surfaceId": "s1"}}]}
+        self.expires_at = datetime.now(UTC) + timedelta(hours=1)
 
     async def fetch_one(self, sql: str, *args: Any) -> dict[str, Any] | None:
         compact = " ".join(sql.split())
@@ -59,7 +61,7 @@ class FakeDB:
         if "FROM {{tables.presentation_links}} p" in compact:
             token = args[0]
             if self.inserted is not None and token == self.inserted["token"] and not self.revoked:
-                return {"envelope": self.presented}
+                return {"envelope": self.presented, "expires_at": self.expires_at}
             return None
         raise AssertionError(f"unexpected SQL: {compact}")
 
@@ -109,7 +111,10 @@ async def test_mint_presentation_link_is_opaque_team_scoped_and_expiring(princip
     assert db.inserted["version_number"] == 2
     assert db.inserted["expires_at"] <= datetime.now(UTC) + timedelta(seconds=7205)
 
-    assert await get_presented_envelope(db, token=response["token"]) == db.presented  # type: ignore[arg-type]
+    assert await get_presented_envelope(db, token=response["token"]) == {  # type: ignore[arg-type]
+        "a2ui": db.presented,
+        "expires_at": db.expires_at,
+    }
 
     await revoke_presentation_link(db, principal=principal, token=response["token"])  # type: ignore[arg-type]
     with pytest.raises(HTTPException) as raised:
@@ -144,17 +149,13 @@ async def test_unknown_presentation_token_returns_404() -> None:
     assert raised.value.status_code == 404
 
 
-@pytest.mark.asyncio
-async def test_artifact_rejects_non_a2ui_envelope(principal: Principal) -> None:
-    db = FakeDB()
+def test_artifact_request_uses_locked_a2ui_key_without_aliases() -> None:
+    payload = CreateArtifactRequest.model_validate({"a2ui": [{"createSurface": {"surfaceId": "s1"}}], "slug": "ask"})
+    assert payload.a2ui == [{"createSurface": {"surfaceId": "s1"}}]
+    assert payload.slug == "ask"
 
-    with pytest.raises(HTTPException) as raised:
-        await create_artifact(
-            db,  # type: ignore[arg-type]
-            principal=principal,
-            kind="a2ui",
-            slug=None,
-            envelope={"not_a2ui_operations": []},
-        )
+    with pytest.raises(ValidationError):
+        CreateArtifactRequest.model_validate({"envelope": {"a2ui_operations": []}})
 
-    assert raised.value.status_code == 400
+    with pytest.raises(ValidationError):
+        CreateArtifactRequest.model_validate({"a2ui": {}, "kind": "a2ui"})

@@ -13,24 +13,20 @@ from atext.auth import Principal
 from atext.config import Settings
 
 
-def _json(value: Any) -> dict[str, Any]:
-    if isinstance(value, dict):
-        return value
+def _json_value(value: Any) -> Any:
     if isinstance(value, str):
-        loaded = json.loads(value)
-        if isinstance(loaded, dict):
-            return loaded
-    raise HTTPException(status_code=500, detail="Stored envelope is malformed")
+        try:
+            return json.loads(value)
+        except json.JSONDecodeError as exc:
+            raise HTTPException(status_code=500, detail="Stored A2UI envelope is malformed") from exc
+    return value
 
 
-def _validate_a2ui_envelope(envelope: dict[str, Any]) -> None:
-    ops = envelope.get("a2ui_operations")
-    if not isinstance(ops, list) or not ops:
-        raise HTTPException(status_code=400, detail="A2UI envelope must contain a2ui_operations")
-    allowed = {"createSurface", "updateComponents", "updateDataModel"}
-    for op in ops:
-        if not isinstance(op, dict) or not allowed.intersection(op.keys()):
-            raise HTTPException(status_code=400, detail="A2UI operation is not supported")
+def _json_bytes(value: Any) -> str:
+    try:
+        return json.dumps(value, separators=(",", ":"))
+    except TypeError as exc:
+        raise HTTPException(status_code=400, detail="A2UI envelope must be JSON serializable") from exc
 
 
 async def create_document(
@@ -204,9 +200,8 @@ async def create_artifact(
     principal: Principal,
     kind: str,
     slug: str | None,
-    envelope: dict[str, Any],
+    a2ui: Any,
 ) -> dict:
-    _validate_a2ui_envelope(envelope)
     artifact_id = uuid4()
     artifact_version_id = uuid4()
     try:
@@ -237,7 +232,7 @@ async def create_artifact(
                 """,
                 artifact_version_id,
                 artifact_id,
-                json.dumps(envelope, separators=(",", ":")),
+                _json_bytes(a2ui),
                 principal.did_key,
                 principal.did_aw,
                 principal.address,
@@ -271,7 +266,7 @@ async def get_artifact(db: AsyncDatabaseManager, *, principal: Principal, artifa
     row = await db.fetch_one(
         """
         SELECT a.artifact_id, a.slug, a.kind, a.created_at, a.updated_at,
-               v.artifact_version_id, v.version_number, v.envelope, v.created_by_did_key,
+               a.team_id, v.artifact_version_id, v.version_number, v.envelope, v.created_by_did_key,
                v.created_by_did_aw, v.created_by_address, v.created_by_alias,
                v.certificate_id, v.created_at AS version_created_at
         FROM {{tables.artifacts}} a
@@ -292,22 +287,13 @@ def _artifact_response(row: Any) -> dict[str, Any]:
     data = dict(row)
     return {
         "artifact_id": data["artifact_id"],
+        "team_id": data["team_id"],
         "slug": data["slug"],
         "kind": data["kind"],
         "current_version": data["version_number"],
+        "a2ui": _json_value(data["envelope"]),
+        "created_by_alias": data["created_by_alias"],
         "created_at": data["created_at"],
-        "updated_at": data["updated_at"],
-        "latest": {
-            "artifact_version_id": data["artifact_version_id"],
-            "version_number": data["version_number"],
-            "envelope": _json(data["envelope"]),
-            "created_by_did_key": data["created_by_did_key"],
-            "created_by_did_aw": data["created_by_did_aw"],
-            "created_by_address": data["created_by_address"],
-            "created_by_alias": data["created_by_alias"],
-            "certificate_id": data["certificate_id"],
-            "created_at": data["version_created_at"],
-        },
     }
 
 
@@ -389,7 +375,7 @@ async def revoke_presentation_link(
 async def get_presented_envelope(db: AsyncDatabaseManager, *, token: str) -> dict[str, Any]:
     row = await db.fetch_one(
         """
-        SELECT v.envelope
+        SELECT v.envelope, p.expires_at
         FROM {{tables.presentation_links}} p
         JOIN {{tables.artifact_versions}} v
           ON v.artifact_id = p.artifact_id AND v.version_number = p.version_number
@@ -399,4 +385,4 @@ async def get_presented_envelope(db: AsyncDatabaseManager, *, token: str) -> dic
     )
     if row is None:
         raise HTTPException(status_code=404, detail="Presentation not found")
-    return _json(row["envelope"])
+    return {"a2ui": _json_value(row["envelope"]), "expires_at": row["expires_at"]}

@@ -4,7 +4,7 @@ from datetime import datetime
 from typing import Any, Literal
 from uuid import UUID
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class CreateDocumentRequest(BaseModel):
@@ -46,9 +46,10 @@ class DocumentResponse(BaseModel):
 
 
 class CreateArtifactRequest(BaseModel):
-    kind: Literal["a2ui"] = "a2ui"
+    model_config = ConfigDict(extra="forbid")
+
+    a2ui: dict[str, Any] | list[Any]
     slug: str | None = Field(default=None, min_length=1, max_length=160, pattern=r"^[a-zA-Z0-9][a-zA-Z0-9_.-]*$")
-    envelope: dict[str, Any]
 
 
 class ArtifactCreateResponse(BaseModel):
@@ -65,29 +66,20 @@ class ArtifactSummary(BaseModel):
     created_at: datetime
 
 
-class ArtifactVersion(BaseModel):
-    artifact_version_id: UUID
-    version_number: int
-    envelope: dict[str, Any]
-    created_by_did_key: str
-    created_by_did_aw: str | None = None
-    created_by_address: str | None = None
-    created_by_alias: str
-    certificate_id: str
-    created_at: datetime
-
-
 class ArtifactResponse(BaseModel):
     artifact_id: UUID
+    team_id: str
     slug: str | None = None
     kind: Literal["a2ui"]
     current_version: int
+    a2ui: Any
+    created_by_alias: str
     created_at: datetime
-    updated_at: datetime
-    latest: ArtifactVersion
 
 
 class CreatePresentationRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     artifact_id: UUID
     version: int | None = Field(default=None, ge=1)
     ttl_seconds: int | None = Field(default=None, ge=60)
@@ -96,4 +88,9 @@ class CreatePresentationRequest(BaseModel):
 class PresentationResponse(BaseModel):
     token: str
     url: str
+    expires_at: datetime
+
+
+class PublicPresentationResponse(BaseModel):
+    a2ui: Any
     expires_at: datetime
