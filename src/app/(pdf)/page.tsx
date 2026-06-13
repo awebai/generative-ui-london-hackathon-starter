@@ -6,53 +6,84 @@ export default function Home() {
     <>
       <SiteNav active="home" />
       <PageHeader
-        eyebrow="CopilotKit × A2UI v0.9"
+        eyebrow="Agent-first generative UI"
         meta={
           <span className="pill">
-            <span className="dot" /> reference build
+            <span className="dot" /> BYOT cert-auth demo
           </span>
         }
         title={
           <>
-            Agents that compose UI from your <br className="hidden md:inline" />
+            A team of agents co-authors text, researches the web, and
+            <br className="hidden md:inline" />
             <span
               className="bg-clip-text text-transparent"
               style={{ backgroundImage: "var(--brand-gradient)" }}
             >
-              own design system.
+              presents cited A2UI.
             </span>
           </>
         }
-        subtitle="Ask the team's concierge to research the live web with LinkUp. It composes a cited A2UI surface from the catalog, stores it as an artifact, and returns a safe presentation link."
+        subtitle="Agent A and Agent B write team-scoped documents with real AWID/BYOT certificates. The team's concierge researches the live web with LinkUp, paints a cited A2UI surface, and mints a safe no-login link for the human."
       />
 
       <main className="flex-1 max-w-[1320px] mx-auto px-6 py-12 w-full">
         <div className="grid md:grid-cols-2 gap-5">
           <ModeCard
             href="/fixed"
-            badge="01 · CONCIERGE"
-            title="Research → cited surface"
-            blurb="The team concierge searches with LinkUp, writes a markdown summary, cites sources, and paints A2UI from the shared catalog."
+            badge="01 · TEAM TEXT"
+            title="Shared text, real authors"
+            blurb="Every document endpoint is scoped to the verified team certificate. Each version records which agent signed the request."
             bullets={[
-              "Live web search via the agent's LinkUp tool",
-              "Markdown summaries render with links, lists, and emphasis",
-              "A2UI surfaces stream in the canvas and can be presented by link",
+              "Agent A creates the team memo over AWID team-auth",
+              "Agent B appends a new immutable version",
+              "The response shows alias, address, DID, and certificate attribution",
             ]}
-            cta="Open the concierge"
+            cta="Open the team workspace"
           />
           <ModeCard
             href="/dynamic"
-            badge="02 · PRESENT"
-            title="Safe links for humans"
-            blurb="After composing the surface, the concierge calls present_to_human so the human opens a clean read-only /present link."
+            badge="02 · CONCIERGE"
+            title="Live research → safe link"
+            blurb="The concierge researches the topic with LinkUp, asks Gemini to compose the surface, then stores and presents the A2UI artifact."
             bullets={[
-              "Agent authenticates with real AWID team-auth",
-              "Server stores the A2UI artifact and mints a capability token",
-              "The frontend reuses the same CopilotKit A2UI renderer",
+              "Real LinkUp web search — not a server-side search shortcut",
+              "Markdown summary plus source list render as catalog components",
+              "present_to_human mints a no-login /present token for the human",
             ]}
-            cta="Open the presentation flow"
+            cta="Open the concierge"
           />
         </div>
+
+        <section className="mt-6 grid lg:grid-cols-[1.1fr_0.9fr] gap-5">
+          <div className="surface p-7">
+            <span className="mono text-[11px] uppercase tracking-[0.14em] text-[var(--muted-2)]">
+              What this demo proves
+            </span>
+            <h2 className="text-[24px] font-semibold tracking-tight mt-2">
+              BYOT identity is the product boundary; A2UI is the human interface.
+            </h2>
+            <p className="mt-3 text-[15px] leading-relaxed text-[var(--ink-2)]">
+              The server trusts AWID team certificates, not browser sessions. Agents
+              can co-author plain text as verified team members, while a concierge
+              turns live web research into a renderer-safe A2UI artifact. Humans
+              receive a capability link that renders the cited surface without an
+              account or login.
+            </p>
+          </div>
+          <div className="surface-soft p-7">
+            <span className="mono text-[11px] uppercase tracking-[0.14em] text-[var(--muted-2)]">
+              Recordable flow
+            </span>
+            <ol className="mt-3 space-y-2 text-[14px] leading-relaxed text-[var(--ink-2)]">
+              <li><strong>1.</strong> Agent A creates a memo; Agent B appends a version.</li>
+              <li><strong>2.</strong> The operator asks the concierge to research the topic.</li>
+              <li><strong>3.</strong> The canvas fills with cards, markdown, and source links.</li>
+              <li><strong>4.</strong> The concierge mints a safe <code className="mono">/present</code> link.</li>
+              <li><strong>5.</strong> A fresh browser opens the link; a bogus token returns 404.</li>
+            </ol>
+          </div>
+        </section>
 
         <section className="mt-14">
           <div className="flex items-end justify-between mb-4">

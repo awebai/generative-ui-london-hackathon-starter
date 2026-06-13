@@ -101,7 +101,7 @@ def render_research_surface(
         {
             "id": "hero-stack",
             "component": "Stack",
-            "children": ["eyebrow", "heading", "intro"],
+            "children": ["eyebrow", "heading", "intro", "proof-row"],
             "gap": "sm",
         },
         {"id": "eyebrow", "component": "Overline", "text": "LINKUP RESEARCH"},
@@ -109,9 +109,18 @@ def render_research_surface(
         {
             "id": "intro",
             "component": "Text",
-            "text": "A cited web-research brief composed by the team's concierge agent.",
+            "text": "A cited web-research brief composed by the team's concierge agent and stored as a safe presentation artifact.",
             "tone": "muted",
         },
+        {
+            "id": "proof-row",
+            "component": "Row",
+            "children": ["badge-live", "badge-cited", "badge-link"],
+            "gap": "xs",
+        },
+        {"id": "badge-live", "component": "Badge", "label": "Live LinkUp search", "tone": "info"},
+        {"id": "badge-cited", "component": "Badge", "label": "Cited markdown", "tone": "success"},
+        {"id": "badge-link", "component": "Badge", "label": "No-login link", "tone": "neutral"},
         {
             "id": "summary-section",
             "component": "Section",

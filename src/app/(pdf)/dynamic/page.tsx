@@ -54,7 +54,7 @@ export default function DynamicPage() {
                     chatInputPlaceholder:
                       "Ask for live web research and a presentation link…",
                     welcomeMessageText:
-                      "I’m the team’s LinkUp concierge. Ask for research; I’ll search, cite sources, render A2UI, and present it to your human.",
+                      "I’m the team’s LinkUp concierge. Agent A and Agent B can co-author shared text through BYOT cert-auth; ask me to research the topic, cite sources, render A2UI, and present it to your human.",
                   }}
                 />
               </div>
@@ -65,8 +65,8 @@ export default function DynamicPage() {
               channel={AGENT_ID}
               emptyState={
                 <CanvasEmptyState
-                  title="Research canvas is empty"
-                  subtitle="The concierge paints cited research surfaces here using the shared A2UI catalog, including markdown summaries and source links."
+                  title="Live research canvas"
+                  subtitle="The concierge paints genuine A2UI surfaces here using the shared catalog: hero card, markdown brief, and real source links from LinkUp."
                   hint={
                     <span className="mono text-[11px] uppercase tracking-[0.14em] text-[var(--ink)]">
                       try: “Research LinkUp and CopilotKit, then present it.”
