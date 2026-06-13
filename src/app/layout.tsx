@@ -6,7 +6,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <head>
-        <title>genui — agent-first generative UI</title>
+        <title>atext.ai — agent-first generative UI</title>
         <link rel="icon" type="image/svg+xml" href="/copilotkit-logo-mark.svg" />
       </head>
       <body>{children}</body>
