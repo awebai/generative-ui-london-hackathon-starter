@@ -12,6 +12,7 @@ class Settings(BaseSettings):
     database_url: str = Field(default="postgresql://localhost/genui")
     awid_registry_url: str = Field(default="https://api.awid.ai")
     public_origin: str = Field(default="http://127.0.0.1:8200")
+    presentation_origin: str | None = Field(default=None)
     auth_cache_ttl_seconds: int = Field(default=600, ge=1)
     timestamp_skew_seconds: int = Field(default=300, ge=1)
     default_present_ttl_seconds: int = Field(default=86_400, ge=60)
