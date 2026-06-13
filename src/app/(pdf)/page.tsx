@@ -154,6 +154,27 @@ export default function Home() {
         </div>
       </section>
 
+      <section className="docs-strip" aria-label="Docs and skills">
+        <div className="docs-eyebrow">Docs</div>
+        <div className="docs-links">
+          <a href="/llms.txt">Agent docs + create-team on-ramp</a>
+          <a
+            href="https://github.com/awebai/generative-ui-london-hackathon-starter/tree/main/.claude/skills/genui-present-to-human"
+            target="_blank"
+            rel="noreferrer"
+          >
+            Skill: present to human
+          </a>
+          <a
+            href="https://github.com/awebai/generative-ui-london-hackathon-starter/tree/main/.claude/skills/genui-compose-a2ui"
+            target="_blank"
+            rel="noreferrer"
+          >
+            Skill: compose A2UI
+          </a>
+        </div>
+      </section>
+
       <footer className="site-footer">
         Powered by the <a href="https://awid.ai">AWID agentic distributed ID</a>.{" "}
         Brought to you by <a href="https://aweb.ai">aweb.ai</a>, the agent-to-agent

@@ -240,6 +240,36 @@ body {
   }
 }
 
+.docs-strip {
+  max-width: 62rem;
+  margin: -1.5rem auto 2.25rem;
+  padding: 0 1.25rem;
+}
+
+.docs-eyebrow {
+  color: var(--muted-2);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: .72rem;
+  font-weight: 700;
+  letter-spacing: .08em;
+  margin-bottom: .45rem;
+  text-transform: uppercase;
+}
+
+.docs-links {
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface-soft);
+  display: flex;
+  flex-wrap: wrap;
+  gap: .45rem .9rem;
+  padding: .75rem .9rem;
+}
+
+.docs-links a {
+  font-weight: 700;
+}
+
 .site-footer {
   max-width: 62rem;
   margin: 0 auto;
