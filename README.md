@@ -18,125 +18,113 @@ views, and mint no-login `/present/<token>` links for humans.
 - `agent/` — retired LangGraph/AG-UI concierge sidecar. Agents now call the
   server directly with `aw id request --team-auth`.
 
-## Create your team (AWID BYOT on-ramp)
+## Create your team
 
-If your team already exists, skip to "Using genui as an agent". Any AWID team
-can use genui as long as each agent has a team certificate in its workspace.
+A genui-usable team must resolve in the public AWID registry (`api.awid.ai`),
+because the genui API verifies team certificates against that registry. A purely
+local test team will fail against the deployed service.
 
-Hosted aweb teams work too: if your team was provisioned in the aweb dashboard,
-follow the dashboard's member/certificate instructions. Hosted teams are
-controller-managed by aweb; do **not** run BYOT controller commands unless your
-organization owns the namespace/team controller key.
+The simplest path is a hosted aweb team. Use BYOT only if your organization must
+control its own DNS-backed namespace and team controller keys.
 
-For a customer-controlled BYOT team, the human/team owner controls DNS and keeps
-the namespace/team controller keys locally. These commands are verified against
-`aw` help and the `aweb-team-membership` BYOT flow.
-
-### 1. Prepare the namespace controller
-
-On the controller machine:
+### 1. Install `aw`
 
 ```bash
-export AWID_DOMAIN=example.com
-export AWID_TEAM=default
-export AWID_TEAM_DISPLAY="Example agent team"
+npm install -g @awebai/aw
+aw --version
 ```
+
+### 2. Create your own identity and first team workspace
+
+Run this in the directory where your first agent will work:
 
 ```bash
-aw id namespace prepare-controller --domain "$AWID_DOMAIN"
+aw init --username <your-aweb-username> --alias alpha
 ```
 
-Publish exactly the `_awid.<domain>` DNS TXT record printed by the command. Do
-not invent the TXT value. Back up `~/.awid` now; it contains the namespace
-controller key.
-
-After DNS propagates:
-
-```bash
-aw id namespace check-txt --domain "$AWID_DOMAIN"
-```
-
-Create the team:
-
-```bash
-aw id team create \
-  --namespace "$AWID_DOMAIN" \
-  --name "$AWID_TEAM" \
-  --display-name "$AWID_TEAM_DISPLAY"
-```
-
-Back up `~/.awid` again. It now also contains the team controller key under
-`~/.awid/team-keys/<domain>/<team>.key`. genui/atext.ai never receives these
-controller private keys.
-
-### 2. Create and add agent members
-
-Run `aw id create` in each agent's own workspace. Example for one global agent:
-
-```bash
-export MEMBER_ALIAS=alpha
-aw --json id create --domain "$AWID_DOMAIN" --name "$MEMBER_ALIAS" \
-  > "$MEMBER_ALIAS.identity.json"
-```
-
-Capture the member identity fields:
-
-```bash
-MEMBER_DID=$(jq -r '.did_key' "$MEMBER_ALIAS.identity.json")
-MEMBER_DID_AW=$(jq -r '.did_aw' "$MEMBER_ALIAS.identity.json")
-```
-
-On the controller machine, sign that member into the team:
-
-```bash
-aw --json id team add-member \
-  --team "$AWID_TEAM" \
-  --namespace "$AWID_DOMAIN" \
-  --did "$MEMBER_DID" \
-  --alias "$MEMBER_ALIAS" \
-  --global \
-  --did-aw "$MEMBER_DID_AW" \
-  > "$MEMBER_ALIAS.member.json"
-```
-
-If the member workspace and controller are on different machines, copy only the
-member's `did_key`, `did_aw`, and desired alias to the controller; do not copy
-private signing keys. Then return the `certificate_id` to the member workspace.
-
-In the member workspace, install and activate the certificate:
-
-```bash
-CERT_ID=$(jq -r '.certificate_id' "$MEMBER_ALIAS.member.json")
-aw id team fetch-cert \
-  --namespace "$AWID_DOMAIN" \
-  --team "$AWID_TEAM" \
-  --cert-id "$CERT_ID"
-aw id team switch "$AWID_TEAM:$AWID_DOMAIN"
-```
-
-Verify before using genui:
+This hosted path creates/connects a self-custodial workspace identity, installs
+a team certificate for a hosted aweb team, and uses AWID facts that resolve at
+`api.awid.ai`. Verify before calling genui:
 
 ```bash
 aw workspace status
 aw id cert show
 ```
 
-### 3. Optional: connect the team to aweb cloud
+If your team already exists in the aweb dashboard, use the dashboard's
+"Add existing identity" / certificate instructions instead; the end state is
+the same: this workspace has an active AWID team certificate.
 
-If the team should also appear in app.aweb.ai, register/sync the customer-signed
-team state. This does not upload controller private keys.
+### 3. Add a teammate identity
+
+From the first workspace, create an invite for the active team:
 
 ```bash
-aw id team register --service https://app.aweb.ai --team "$AWID_TEAM:$AWID_DOMAIN"
-aw workspace connect --service https://app.aweb.ai --team "$AWID_TEAM:$AWID_DOMAIN"
+aw team invite
 ```
 
-Now point the agent at the deployed genui API and continue with the usage
-recipe:
+Send the printed invite token to the teammate. In the teammate's clean target
+directory:
+
+```bash
+aw team join <invite-token> --alias beta
+aw init
+```
+
+If `aw team join` prints different next steps, follow those exact instructions.
+Then verify the teammate workspace:
+
+```bash
+aw workspace status
+aw id cert show
+```
+
+Now you are a team: `alpha` and `beta` each have their own identity and team
+certificate. In either member workspace, point at the deployed genui API and use
+the recipes below:
 
 ```bash
 export SERVER_ORIGIN=https://api.atext.ai
 ```
+
+### Advanced: BYOT / your own DNS namespace
+
+Use this only when the organization must control its own namespace and team
+controller keys. The short shape is still: install `aw`, create your identity,
+add teammate identities — but a controller machine first prepares DNS-backed
+AWID authority:
+
+```bash
+aw id namespace prepare-controller --domain <domain>
+# publish the exact _awid.<domain> TXT record printed by the command
+aw id namespace check-txt --domain <domain>
+aw id team create --namespace <domain> --name <team> --display-name "<display name>"
+```
+
+Back up `~/.awid`; it contains the namespace/team controller private keys. For
+each member, run `aw id create --domain <domain> --name <alias>` in that
+member's workspace, then have the controller sign membership:
+
+```bash
+aw id team add-member \
+  --team <team> \
+  --namespace <domain> \
+  --did <member_did_key> \
+  --alias <alias> \
+  --global \
+  --did-aw <member_did_aw>
+```
+
+The member installs the printed certificate:
+
+```bash
+aw id team fetch-cert --namespace <domain> --team <team> --cert-id <cert-id>
+aw id team switch <team>:<domain>
+```
+
+Never copy member private signing keys or controller private keys between
+machines. genui/atext.ai receives only signed public AWID facts and per-request
+team certificates, never controller private keys.
 
 ## Using genui as an agent
 

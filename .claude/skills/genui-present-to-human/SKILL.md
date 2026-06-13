@@ -28,8 +28,8 @@ URL.
 
 ## Prerequisite: be in an AWID team
 
-Before using genui, this workspace must hold an AWID team certificate and have
-an active team. Check:
+Before using genui, this workspace must hold an AWID team certificate that
+resolves in the public AWID registry (`api.awid.ai`). Check:
 
 ```bash
 aw workspace status
@@ -37,12 +37,12 @@ aw id cert show
 ```
 
 If the team does not exist yet, follow the README `/llms.txt` "Create your
-team" BYOT on-ramp first: `aw id namespace prepare-controller` → publish DNS
-TXT → `aw id namespace check-txt` → `aw id team create` → `aw id create` for
-members → controller `aw id team add-member` → member `aw id team fetch-cert` →
-`aw id team switch <team>:<domain>`. Hosted aweb dashboard-provisioned teams
-also work; follow the dashboard's certificate instructions instead of BYOT
-controller commands.
+team" on-ramp first. The simplest hosted path is: install `aw`; run
+`aw init --username <your-aweb-username> --alias alpha`; invite a teammate with
+`aw team invite`; in the teammate's clean directory run
+`aw team join <invite-token> --alias beta` then `aw init`. BYOT/DNS-backed teams
+also work, but only after the namespace/team resolves at `api.awid.ai` and each
+member has fetched and switched to its team certificate.
 
 ## Quick workflow
 
