@@ -1,0 +1,20 @@
+services:
+  - type: web
+    name: genui-server
+    env: docker
+    region: oregon
+    plan: starter
+    dockerfilePath: ./server/Dockerfile
+    dockerContext: .
+    healthCheckPath: /health
+    envVars:
+      - key: GENUI_SERVER_DATABASE_URL
+        sync: false
+      - key: GENUI_SERVER_AWID_REGISTRY_URL
+        value: https://api.awid.ai
+      - key: GENUI_SERVER_PUBLIC_ORIGIN
+        sync: false
+      - key: GENUI_SERVER_PRESENTATION_ORIGIN
+        sync: false
+      - key: LINKUP_API_KEY
+        sync: false
