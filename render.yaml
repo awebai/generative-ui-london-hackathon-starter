@@ -16,5 +16,11 @@ services:
         sync: false
       - key: GENUI_SERVER_PRESENTATION_ORIGIN
         sync: false
+      - key: GENUI_SERVER_DB_POOL_MIN_CONNECTIONS
+        value: "1"
+      - key: GENUI_SERVER_DB_POOL_MAX_CONNECTIONS
+        value: "5"
+      - key: GENUI_SERVER_DB_STATEMENT_CACHE_SIZE
+        value: "0"
       - key: LINKUP_API_KEY
         sync: false
