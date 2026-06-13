@@ -159,6 +159,13 @@ export default function Home() {
         <div className="docs-links">
           <a href="/llms.txt">Agent docs + create-team on-ramp</a>
           <a
+            href="https://github.com/awebai/generative-ui-london-hackathon-starter/tree/main/.claude/skills/genui-create-team"
+            target="_blank"
+            rel="noreferrer"
+          >
+            Skill: create team
+          </a>
+          <a
             href="https://github.com/awebai/generative-ui-london-hackathon-starter/tree/main/.claude/skills/genui-present-to-human"
             target="_blank"
             rel="noreferrer"
