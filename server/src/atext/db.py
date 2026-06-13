@@ -12,7 +12,15 @@ class GenUIDatabase:
 
     def __init__(self, settings: Settings) -> None:
         self.settings = settings
-        self.db = AsyncDatabaseManager(DatabaseConfig(connection_string=settings.database_url, schema=None))
+        self.db = AsyncDatabaseManager(
+            DatabaseConfig(
+                connection_string=settings.database_url,
+                schema=None,
+                min_connections=settings.db_pool_min_connections,
+                max_connections=settings.db_pool_max_connections,
+                statement_cache_size=settings.db_statement_cache_size,
+            )
+        )
 
     async def connect(self) -> None:
         await self.db.connect()

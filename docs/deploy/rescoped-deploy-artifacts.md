@@ -41,6 +41,9 @@ docker run --rm -p 8200:8200 \
   -e GENUI_SERVER_AWID_REGISTRY_URL=https://api.awid.ai \
   -e GENUI_SERVER_PUBLIC_ORIGIN=https://api.<domain> \
   -e GENUI_SERVER_PRESENTATION_ORIGIN=https://<frontend-domain> \
+  -e GENUI_SERVER_DB_POOL_MIN_CONNECTIONS=1 \
+  -e GENUI_SERVER_DB_POOL_MAX_CONNECTIONS=5 \
+  -e GENUI_SERVER_DB_STATEMENT_CACHE_SIZE=0 \
   -e LINKUP_API_KEY="$LINKUP_API_KEY" \
   genui-server:064e0fd
 ```
@@ -102,6 +105,9 @@ GENUI_SERVER_DATABASE_URL=postgresql://...        # Neon/Postgres connection
 GENUI_SERVER_AWID_REGISTRY_URL=https://api.awid.ai
 GENUI_SERVER_PUBLIC_ORIGIN=https://api.<domain>   # aud agents sign in aw id request --team-auth
 GENUI_SERVER_PRESENTATION_ORIGIN=https://<frontend-domain>
+GENUI_SERVER_DB_POOL_MIN_CONNECTIONS=1            # default; keep small for Neon pooled endpoint
+GENUI_SERVER_DB_POOL_MAX_CONNECTIONS=5            # default; lower/raise only with Neon tier awareness
+GENUI_SERVER_DB_STATEMENT_CACHE_SIZE=0            # default; PgBouncer/Neon pooler friendly
 LINKUP_API_KEY=...                                # server-side only; enables POST /v1/search
 ```
 
@@ -112,7 +118,20 @@ GENUI_SERVER_DEFAULT_PRESENT_TTL_SECONDS=86400
 GENUI_SERVER_MAX_PRESENT_TTL_SECONDS=604800
 GENUI_SERVER_AUTH_CACHE_TTL_SECONDS=600
 GENUI_SERVER_TIMESTAMP_SKEW_SECONDS=300
+GENUI_SERVER_DB_POOL_MIN_CONNECTIONS=1
+GENUI_SERVER_DB_POOL_MAX_CONNECTIONS=5
+GENUI_SERVER_DB_STATEMENT_CACHE_SIZE=0
 ```
+
+Database pool defaults for Render + Neon pooled endpoint:
+
+- The server default is deliberately modest: min `1`, max `5` connections per
+  Render instance.
+- `GENUI_SERVER_DB_POOL_MAX_CONNECTIONS` is the primary cap Operations should
+  tune down/up based on the Neon tier and Render instance count.
+- `GENUI_SERVER_DB_STATEMENT_CACHE_SIZE=0` is the default because Neon pooled
+  endpoints sit behind PgBouncer; disabling asyncpg's prepared-statement cache
+  avoids pooler incompatibilities.
 
 Read-only `/present/{token}` path requirements:
 
