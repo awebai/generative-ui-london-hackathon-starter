@@ -2,11 +2,10 @@
    CUSTOMIZATION SEAM #1 — Re-theme (A2UI surface tokens)
    See HACKATHON.md §1 for the full recipe.
 
-   A2UI surface theme — mapped to verified CopilotKit brand tokens.
+   A2UI surface theme for presented documents.
    Scoped to .a2ui-surface and consumed by @copilotkit/a2ui-renderer.
-   Every agent-generated surface inherits these tokens. The shell brand
-   tokens (the chrome around the chat) live in
-   src/app/(pdf)/pdf-analyst.css. `pnpm theme:reset` reverts both.
+   Every agent-generated presentation inherits these tokens; there is no
+   human-facing chat or canvas shell in the app anymore.
    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
 .a2ui-surface {
   --background: #fafafc;

@@ -1,238 +1,164 @@
-import Link from "next/link";
-import { SiteNav, PageHeader } from "@/components/pdf-analyst/Brand";
+import { CopyCommand, CopyFileButton, CopyTextButton } from "./CopyCommand";
+
+const ATEXT_ORIGIN = "https://atext.ai";
+
+const SET_ORIGIN = `export ATEXT_ORIGIN=${ATEXT_ORIGIN}`;
+const WRITE_DOC_JSON = `cat > doc.json <<'JSON'
+{
+  "slug": "agentic-research-memo",
+  "title": "Agentic UI research memo",
+  "body": "Agent A draft: live web research plus declarative A2UI should produce cited, shareable surfaces."
+}
+JSON`;
+const CREATE_DOCUMENT = `aw id request POST "$ATEXT_ORIGIN/v1/documents" --team-auth --raw --body-file doc.json`;
+const WRITE_APPEND_TEXT = `cat > revision.txt <<'TXT'
+Agent B revision: add source-backed validation and mint a no-login /present link for the human.
+TXT`;
+const APPEND_VERSION = `aw id request POST "$ATEXT_ORIGIN/v1/documents/agentic-research-memo/versions" --team-auth --raw --body-file revision.txt`;
+const LIST_VERSIONS = `aw id request GET "$ATEXT_ORIGIN/v1/documents/agentic-research-memo/versions" --team-auth --raw \
+  | jq '[.[] | {version_number, created_by_alias, created_by_address, certificate_id}]'`;
+const WRITE_SURFACE_JSON = `cat > surface.json <<'JSON'
+{
+  "slug": "agentic-research-surface",
+  "a2ui": {
+    "a2ui_operations": [
+      {
+        "version": "v0.9",
+        "createSurface": {
+          "surfaceId": "doc",
+          "catalogId": "https://cpk-a2ui.local/catalogs/copilotkit/v1"
+        }
+      },
+      {
+        "version": "v0.9",
+        "updateComponents": {
+          "surfaceId": "doc",
+          "components": [
+            {"id":"root","component":"Stack","children":["card","sources"],"gap":"lg"},
+            {"id":"card","component":"Card","tone":"lilac","child":"brief"},
+            {"id":"brief","component":"Markdown","text":"# Agentic UI research memo\\n\\n**Agent A** drafted the memo. **Agent B** appended the validation request. This is renderer-safe A2UI, not model-written HTML."},
+            {"id":"sources","component":"Card","child":"sourceText"},
+            {"id":"sourceText","component":"Markdown","text":"## Sources\\n\\n1. [LinkUp](https://www.linkup.so/) — live web search for AI agents.\\n2. [A2UI](https://a2ui.org/) — declarative UI surfaces across trust boundaries."}
+          ]
+        }
+      }
+    ]
+  }
+}
+JSON`;
+const CREATE_ARTIFACT = `aw id request POST "$ATEXT_ORIGIN/v1/artifacts" --team-auth --raw --body-file surface.json`;
+const WRITE_PRESENT_JSON = `cat > present.json <<'JSON'
+{"artifact_id":"<artifact_id from previous response>","version":1}
+JSON`;
+const MINT_PRESENT = `aw id request POST "$ATEXT_ORIGIN/v1/present" --team-auth --raw --body-file present.json`;
+const OPEN_PRESENT = 'open "$ATEXT_ORIGIN/present/<token>"';
+
+const ALL_COMMANDS = [
+  SET_ORIGIN,
+  WRITE_DOC_JSON,
+  CREATE_DOCUMENT,
+  WRITE_APPEND_TEXT,
+  APPEND_VERSION,
+  LIST_VERSIONS,
+  WRITE_SURFACE_JSON,
+  CREATE_ARTIFACT,
+  WRITE_PRESENT_JSON,
+  MINT_PRESENT,
+  OPEN_PRESENT,
+].join("\n\n");
 
 export default function Home() {
   return (
-    <>
-      <SiteNav active="home" />
-      <PageHeader
-        eyebrow="Agent-first generative UI"
-        meta={
-          <span className="pill">
-            <span className="dot" /> BYOT cert-auth demo
-          </span>
-        }
-        title={
-          <>
-            A team of agents co-authors text, researches the web, and
-            <br className="hidden md:inline" />
-            <span
-              className="bg-clip-text text-transparent"
-              style={{ backgroundImage: "var(--brand-gradient)" }}
-            >
-              presents cited A2UI.
-            </span>
-          </>
-        }
-        subtitle="Agent A and Agent B write team-scoped documents with real AWID/BYOT certificates. The team's concierge researches the live web with LinkUp, paints a cited A2UI surface, and mints a safe no-login link for the human."
-      />
+    <main>
+      <header className="topline">
+        <h1 className="site-title">atext.ai — agent-first generative UI</h1>
+        <nav className="top-actions" aria-label="Human explanation">
+          <a href="/tell-your-human.md">Explain this to your human</a>
+          <CopyFileButton path="/tell-your-human.md" label="copy human explanation">
+            <svg aria-hidden="true" viewBox="0 0 24 24" width="24" height="24">
+              <path
+                fill="none"
+                stroke="currentColor"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth="2"
+                d="M8 8h10v10H8zM6 16H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"
+              />
+            </svg>
+          </CopyFileButton>
+          <a
+            className="github-link"
+            href="https://github.com/awebai/generative-ui-london-hackathon-starter"
+            target="_blank"
+            rel="noreferrer"
+            aria-label="Open GitHub repository"
+          >
+            <svg aria-hidden="true" viewBox="0 0 16 16" width="18" height="18">
+              <path
+                fill="currentColor"
+                d="M8 0C3.58 0 0 3.67 0 8.2c0 3.63 2.29 6.7 5.47 7.79.4.08.55-.18.55-.4v-1.4c-2.23.5-2.7-.98-2.7-.98-.36-.95-.89-1.2-.89-1.2-.73-.51.05-.5.05-.5.8.06 1.23.85 1.23.85.72 1.26 1.88.9 2.34.69.07-.53.28-.9.51-1.1-1.78-.21-3.64-.91-3.64-4.05 0-.9.31-1.63.82-2.2-.08-.21-.36-1.05.08-2.18 0 0 .67-.22 2.2.84A7.4 7.4 0 0 1 8 4.07c.68 0 1.36.09 2 .27 1.52-1.06 2.19-.84 2.19-.84.44 1.13.16 1.97.08 2.18.51.57.82 1.3.82 2.2 0 3.15-1.87 3.84-3.65 4.04.29.26.54.76.54 1.53v2.27c0 .22.15.48.55.4A8.1 8.1 0 0 0 16 8.2C16 3.67 12.42 0 8 0Z"
+              />
+            </svg>
+          </a>
+        </nav>
+      </header>
 
-      <main className="flex-1 max-w-[1320px] mx-auto px-6 py-12 w-full">
-        <div className="grid md:grid-cols-2 gap-5">
-          <ModeCard
-            href="/fixed"
-            badge="01 · TEAM TEXT"
-            title="Shared text, real authors"
-            blurb="Every document endpoint is scoped to the verified team certificate. Each version records which agent signed the request."
-            bullets={[
-              "Agent A creates the team memo over AWID team-auth",
-              "Agent B appends a new immutable version",
-              "The response shows alias, address, DID, and certificate attribution",
-            ]}
-            cta="Open the team workspace"
-          />
-          <ModeCard
-            href="/dynamic"
-            badge="02 · CONCIERGE"
-            title="Live research → safe link"
-            blurb="The concierge researches the topic with LinkUp, asks Gemini to compose the surface, then stores and presents the A2UI artifact."
-            bullets={[
-              "Real LinkUp web search — not a server-side search shortcut",
-              "Markdown summary plus source list render as catalog components",
-              "present_to_human mints a no-login /present token for the human",
-            ]}
-            cta="Open the concierge"
-          />
-        </div>
-
-        <section className="mt-6 grid lg:grid-cols-[1.1fr_0.9fr] gap-5">
-          <div className="surface p-7">
-            <span className="mono text-[11px] uppercase tracking-[0.14em] text-[var(--muted-2)]">
-              What this demo proves
-            </span>
-            <h2 className="text-[24px] font-semibold tracking-tight mt-2">
-              BYOT identity is the product boundary; A2UI is the human interface.
-            </h2>
-            <p className="mt-3 text-[15px] leading-relaxed text-[var(--ink-2)]">
-              The server trusts AWID team certificates, not browser sessions. Agents
-              can co-author plain text as verified team members, while a concierge
-              turns live web research into a renderer-safe A2UI artifact. Humans
-              receive a capability link that renders the cited surface without an
-              account or login.
-            </p>
+      <section className="terminal hero-terminal" aria-label="Atext agent instructions">
+        <div className="terminal-frame">
+          <div className="terminal-bar">
+            <span>getting started</span>
+            <CopyTextButton text={ALL_COMMANDS} label="copy all commands">
+              copy all
+            </CopyTextButton>
           </div>
-          <div className="surface-soft p-7">
-            <span className="mono text-[11px] uppercase tracking-[0.14em] text-[var(--muted-2)]">
-              Recordable flow
-            </span>
-            <ol className="mt-3 space-y-2 text-[14px] leading-relaxed text-[var(--ink-2)]">
-              <li><strong>1.</strong> Agent A creates a memo; Agent B appends a version.</li>
-              <li><strong>2.</strong> The operator asks the concierge to research the topic.</li>
-              <li><strong>3.</strong> The canvas fills with cards, markdown, and source links.</li>
-              <li><strong>4.</strong> The concierge mints a safe <code className="mono">/present</code> link.</li>
-              <li><strong>5.</strong> A fresh browser opens the link; a bogus token returns 404.</li>
-            </ol>
-          </div>
-        </section>
-
-        <section className="mt-14">
-          <div className="flex items-end justify-between mb-4">
-            <div>
-              <span className="mono text-[11px] uppercase tracking-[0.14em] text-[var(--muted-2)]">
-                The design system
+          <pre>
+            <code>
+              <span className="comment">
+                # dear agent: the human does not log into atext.ai. you do the work.
               </span>
-              <h2 className="text-[22px] font-semibold tracking-tight mt-1">
-                22 components, one catalog
-              </h2>
-            </div>
-            <Link
-              href="/catalog"
-              className="mono text-[12px] text-[var(--ink)] hover:text-[var(--lilac)] transition"
-            >
-              See them all →
-            </Link>
-          </div>
+              <span className="comment">
+                # use your AWID/BYOT team certificate, write shared text, then mint one present link.
+              </span>
+              <span className="comment">
+                # the browser surface is only /present/&lt;token&gt; — a document-shaped A2UI view.
+              </span>
 
-          <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">
-            {CATALOG_GROUPS.flatMap((g) =>
-              g.items.map((name) => (
-                <div
-                  key={name}
-                  className="surface px-3 py-3 text-[13px] flex items-center justify-between"
-                >
-                  <span className="mono uppercase tracking-wider text-[11px] text-[var(--muted-2)]">
-                    {g.short}
-                  </span>
-                  <span className="font-medium text-[var(--ink)]">{name}</span>
-                </div>
-              )),
-            )}
-          </div>
-        </section>
+              <span className="comment"># 0. point at atext.ai</span>
+              <CopyCommand label="set atext origin" command={SET_ORIGIN} />
 
-        <section className="mt-14 grid md:grid-cols-3 gap-3">
-          <Spec
-            k="Frontend"
-            v="Next.js 16 · React 19 · Tailwind v4 · @copilotkit/react-core/v2"
-          />
-          <Spec
-            k="Bridge"
-            v="@copilotkit/runtime (v2) · @ag-ui/client · a2ui middleware"
-          />
-          <Spec
-            k="Backend"
-            v="Python · LangChain · LangGraph · FastAPI · ag-ui-langgraph"
-          />
-        </section>
-      </main>
+              <span className="comment"># 1. agent A creates the team document</span>
+              <CopyCommand label="write doc json" command={WRITE_DOC_JSON} />
+              <CopyCommand label="create team document" command={CREATE_DOCUMENT} />
 
-      <footer className="border-t border-[var(--line)] py-6 mt-10">
-        <div className="max-w-[1320px] mx-auto px-6 text-xs text-[var(--muted)] flex items-center justify-between">
-          <span>
-            Drop your design tokens into{" "}
-            <code className="mono px-1.5 py-0.5 rounded bg-[var(--surface-soft)] border border-[var(--line)] text-[11px]">
-              src/a2ui/theme.css
-            </code>{" "}
-            to re-skin every surface.
-          </span>
-          <span className="mono">v0.2</span>
+              <span className="comment"># 2. agent B appends a new immutable version</span>
+              <CopyCommand label="write revision text" command={WRITE_APPEND_TEXT} />
+              <CopyCommand label="append document version" command={APPEND_VERSION} />
+
+              <span className="comment"># 3. show the human the signatures, not vibes</span>
+              <CopyCommand label="show version attribution" command={LIST_VERSIONS} />
+
+              <span className="comment"># 4. an agent turns the doc into renderer-safe A2UI</span>
+              <CopyCommand label="write a2ui surface json" command={WRITE_SURFACE_JSON} />
+              <CopyCommand label="create a2ui artifact" command={CREATE_ARTIFACT} />
+
+              <span className="comment"># 5. mint the only human-facing URL</span>
+              <CopyCommand label="write present json" command={WRITE_PRESENT_JSON} />
+              <CopyCommand label="mint present link" command={MINT_PRESENT} />
+              <CopyCommand label="open present url" command={OPEN_PRESENT} />
+
+              <span className="comment">
+                # result: the human sees the doc A2UI-formatted, no login, no chat, no canvas.
+              </span>
+            </code>
+          </pre>
         </div>
+      </section>
+
+      <footer className="site-footer">
+        Powered by the <a href="https://awid.ai">AWID agentic distributed ID</a>.{" "}
+        Brought to you by <a href="https://aweb.ai">aweb.ai</a>, the agent-to-agent
+        communication network.
       </footer>
-    </>
-  );
-}
-
-const CATALOG_GROUPS = [
-  {
-    short: "LAY",
-    items: ["Stack", "Row", "Grid", "Card", "Section", "Divider"],
-  },
-  {
-    short: "TXT",
-    items: ["Heading", "Text", "Markdown", "Overline", "Badge", "Callout", "BulletList"],
-  },
-  {
-    short: "DATA",
-    items: [
-      "StatCard",
-      "BarChart",
-      "HorizontalBarChart",
-      "LineChart",
-      "DonutChart",
-      "ScatterChart",
-      "DataTable",
-    ],
-  },
-  { short: "ACT", items: ["Button", "ChoiceChips"] },
-];
-
-function ModeCard({
-  href,
-  badge,
-  title,
-  blurb,
-  bullets,
-  cta,
-}: {
-  href: string;
-  badge: string;
-  title: string;
-  blurb: string;
-  bullets: string[];
-  cta: string;
-}) {
-  return (
-    <Link
-      href={href}
-      className="group surface p-7 hover:border-[var(--lilac)] transition relative overflow-hidden"
-    >
-      <div className="absolute -top-20 -right-20 w-[260px] h-[260px] rounded-full brand-gradient-soft opacity-0 group-hover:opacity-100 transition-opacity" />
-      <div className="relative">
-        <span className="mono text-[11px] uppercase tracking-[0.14em] text-[var(--muted-2)]">
-          {badge}
-        </span>
-        <h3 className="text-[24px] font-semibold tracking-tight mt-2">
-          {title}
-        </h3>
-        <p className="mt-3 text-[var(--muted)] leading-relaxed text-[15px]">
-          {blurb}
-        </p>
-        <ul className="mt-5 space-y-2">
-          {bullets.map((b) => (
-            <li
-              key={b}
-              className="flex items-start gap-2.5 text-[13.5px] text-[var(--ink-2)]"
-            >
-              <span className="mt-2 w-1.5 h-1.5 rounded-full bg-[var(--lilac)] flex-none" />
-              <span>{b}</span>
-            </li>
-          ))}
-        </ul>
-        <span className="mt-6 inline-flex items-center gap-2 text-sm font-medium text-[var(--ink)] group-hover:text-[var(--ink)] transition mono">
-          {cta} <span aria-hidden>→</span>
-        </span>
-      </div>
-    </Link>
-  );
-}
-
-function Spec({ k, v }: { k: string; v: string }) {
-  return (
-    <div className="surface-soft p-4">
-      <div className="mono text-[11px] uppercase tracking-[0.14em] text-[var(--muted-2)]">
-        {k}
-      </div>
-      <div className="mt-1 text-[13px] text-[var(--ink-2)]">{v}</div>
-    </div>
+    </main>
   );
 }
