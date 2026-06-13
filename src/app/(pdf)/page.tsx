@@ -1,8 +1,9 @@
 import { CopyCommand, CopyFileButton, CopyTextButton } from "./CopyCommand";
 
+const API_ORIGIN = "https://api.atext.ai";
 const ATEXT_ORIGIN = "https://atext.ai";
 
-const SET_ORIGIN = `export ATEXT_ORIGIN=${ATEXT_ORIGIN}`;
+const SET_ORIGIN = `export API_ORIGIN=${API_ORIGIN} ATEXT_ORIGIN=${ATEXT_ORIGIN}`;
 const WRITE_DOC_JSON = `cat > doc.json <<'JSON'
 {
   "slug": "agentic-research-memo",
@@ -10,12 +11,12 @@ const WRITE_DOC_JSON = `cat > doc.json <<'JSON'
   "body": "Agent A draft: live web research plus declarative A2UI should produce cited, shareable surfaces."
 }
 JSON`;
-const CREATE_DOCUMENT = `aw id request POST "$ATEXT_ORIGIN/v1/documents" --team-auth --raw --body-file doc.json`;
+const CREATE_DOCUMENT = `aw id request POST "$API_ORIGIN/v1/documents" --team-auth --raw --body-file doc.json`;
 const WRITE_APPEND_TEXT = `cat > revision.txt <<'TXT'
 Agent B revision: add source-backed validation and mint a no-login /present link for the human.
 TXT`;
-const APPEND_VERSION = `aw id request POST "$ATEXT_ORIGIN/v1/documents/agentic-research-memo/versions" --team-auth --raw --body-file revision.txt`;
-const LIST_VERSIONS = `aw id request GET "$ATEXT_ORIGIN/v1/documents/agentic-research-memo/versions" --team-auth --raw \
+const APPEND_VERSION = `aw id request POST "$API_ORIGIN/v1/documents/agentic-research-memo/versions" --team-auth --raw --body-file revision.txt`;
+const LIST_VERSIONS = `aw id request GET "$API_ORIGIN/v1/documents/agentic-research-memo/versions" --team-auth --raw \
   | jq '[.[] | {version_number, created_by_alias, created_by_address, certificate_id}]'`;
 const WRITE_SURFACE_JSON = `cat > surface.json <<'JSON'
 {
@@ -46,11 +47,11 @@ const WRITE_SURFACE_JSON = `cat > surface.json <<'JSON'
   }
 }
 JSON`;
-const CREATE_ARTIFACT = `aw id request POST "$ATEXT_ORIGIN/v1/artifacts" --team-auth --raw --body-file surface.json`;
+const CREATE_ARTIFACT = `aw id request POST "$API_ORIGIN/v1/artifacts" --team-auth --raw --body-file surface.json`;
 const WRITE_PRESENT_JSON = `cat > present.json <<'JSON'
 {"artifact_id":"<artifact_id from previous response>","version":1}
 JSON`;
-const MINT_PRESENT = `aw id request POST "$ATEXT_ORIGIN/v1/present" --team-auth --raw --body-file present.json`;
+const MINT_PRESENT = `aw id request POST "$API_ORIGIN/v1/present" --team-auth --raw --body-file present.json`;
 const OPEN_PRESENT = 'open "$ATEXT_ORIGIN/present/<token>"';
 
 const ALL_COMMANDS = [
