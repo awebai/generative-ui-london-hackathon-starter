@@ -92,7 +92,12 @@ class FakeDB:
 @pytest.mark.asyncio
 async def test_mint_presentation_link_is_opaque_team_scoped_and_expiring(principal: Principal) -> None:
     db = FakeDB()
-    settings = Settings(public_origin="https://genui.example", default_present_ttl_seconds=3600, max_present_ttl_seconds=7200)
+    settings = Settings(
+        public_origin="https://server.genui.example",
+        presentation_origin="https://app.genui.example",
+        default_present_ttl_seconds=3600,
+        max_present_ttl_seconds=7200,
+    )
 
     response = await mint_presentation_link(
         db,  # type: ignore[arg-type]
@@ -106,7 +111,7 @@ async def test_mint_presentation_link_is_opaque_team_scoped_and_expiring(princip
     assert db.inserted is not None
     assert response["token"] == db.inserted["token"]
     assert len(response["token"]) >= 43
-    assert response["url"] == f"https://genui.example/present/{response['token']}"
+    assert response["url"] == f"https://app.genui.example/present/{response['token']}"
     assert db.inserted["team_id"] == principal.team_id
     assert db.inserted["version_number"] == 2
     assert db.inserted["expires_at"] <= datetime.now(UTC) + timedelta(seconds=7205)

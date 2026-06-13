@@ -345,9 +345,10 @@ async def mint_presentation_link(
         principal.did_key,
         expires_at,
     )
+    presentation_origin = (settings.presentation_origin or settings.public_origin).rstrip("/")
     return {
         "token": token,
-        "url": f"{settings.public_origin.rstrip('/')}/present/{token}",
+        "url": f"{presentation_origin}/present/{token}",
         "expires_at": expires_at,
     }
 
