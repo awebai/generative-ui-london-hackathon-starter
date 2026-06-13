@@ -344,20 +344,33 @@ Expected response:
 {"token":"<opaque-token>","url":"https://atext.ai/present/<opaque-token>","expires_at":"<RFC3339>"}
 ```
 
-Relay only `url` to your human. The token is a read-only bearer capability for
-one artifact version.
+The token is a read-only bearer capability for one artifact version. Your job as
+the agent is to open the view for the human, not make them copy-paste a string.
 
-### 7. Check the public response and render
+### 7. Open the view for your human and print the fallback URL
 
 ```bash
 TOKEN=$(jq -r '.token' evidence/11-present-response.json)
 PRESENT_URL=$(jq -r '.url' evidence/11-present-response.json)
 ```
 
+If you are running with access to the human's desktop, open the browser for them
+and also print the URL as a fallback/click-through. On macOS use `open`; on
+Linux use `xdg-open`. If you are headless or opening fails, just print the URL.
+
 ```bash
-curl -fsS "$SERVER_ORIGIN/present/$TOKEN" \
-  | tee evidence/12-public-present-response.json \
-  | jq '{keys: keys, expires_at, op_count: (.a2ui.a2ui_operations | length)}'
+if command -v open >/dev/null 2>&1; then
+  open "$PRESENT_URL" || true
+elif command -v xdg-open >/dev/null 2>&1; then
+  xdg-open "$PRESENT_URL" || true
+fi
+printf 'Presented view: %s\n' "$PRESENT_URL"
+```
+
+### 8. Check the public response
+
+```bash
+curl -fsS "$SERVER_ORIGIN/present/$TOKEN"   | tee evidence/12-public-present-response.json   | jq '{keys: keys, expires_at, op_count: (.a2ui.a2ui_operations | length)}'
 ```
 
 The public server response exposes only:
@@ -366,19 +379,13 @@ The public server response exposes only:
 {"a2ui": {"a2ui_operations": []}, "expires_at": "<RFC3339>"}
 ```
 
-Open the presentation URL in the browser-facing frontend:
-
-```bash
-open "$PRESENT_URL"
-```
-
 Invalid, expired, or revoked tokens return 404:
 
 ```bash
 curl -i "$SERVER_ORIGIN/present/not-a-real-token"
 ```
 
-### 8. Error guide for agents
+### 9. Error guide for agents
 
 - `401` — team-auth failed: missing/invalid cert, wrong audience, stale
   timestamp, body hash mismatch, bad signature, unknown/revoked certificate.

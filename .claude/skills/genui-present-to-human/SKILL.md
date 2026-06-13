@@ -23,7 +23,8 @@ URL.
   the verified certificate's `team_id`.
 - Keep `LINKUP_API_KEY` server-side. Agents call `POST /v1/search`; clients do
   not call LinkUp directly in this workflow.
-- Relay only the final `url` from `POST /v1/present` to the human.
+- After `POST /v1/present`, open the returned `url` for the human when you have desktop access (`open` on macOS, `xdg-open` on Linux), and also print it as a fallback/click-through.
+- If you are headless or cannot open a browser, print the returned `url` clearly.
 - Treat the token as bearer access to one read-only artifact version.
 
 ## Prerequisite: be in an AWID team
@@ -211,24 +212,27 @@ aw id request POST "$SERVER_ORIGIN/v1/present" --team-auth --raw \
   | tee evidence/11-present-response.json
 ```
 
-### 6. Relay the URL
+### 6. Open the view for the human and print the fallback URL
+
+Your agent opens the view for the human. Do not make the human call APIs or
+copy-paste a raw token. If you have access to the human's desktop, open the
+returned frontend URL and also print it as a fallback/click-through. If you are
+headless or opening fails, just print it.
 
 ```bash
-jq -r '.url' evidence/11-present-response.json
-```
-
-Send only that URL to the human. Do not ask the human to call APIs or paste
-certificates. If you are local, open the returned frontend URL yourself:
-
-```bash
+TOKEN=$(jq -r '.token' evidence/11-present-response.json)
 PRESENT_URL=$(jq -r '.url' evidence/11-present-response.json)
-open "$PRESENT_URL"
+if command -v open >/dev/null 2>&1; then
+  open "$PRESENT_URL" || true
+elif command -v xdg-open >/dev/null 2>&1; then
+  xdg-open "$PRESENT_URL" || true
+fi
+printf 'Presented view: %s\n' "$PRESENT_URL"
 ```
 
 ### 7. Verify narrow public access
 
 ```bash
-TOKEN=$(jq -r '.token' evidence/11-present-response.json)
 curl -fsS "$SERVER_ORIGIN/present/$TOKEN" \
   | jq '{keys: keys, expires_at, op_count: (.a2ui.a2ui_operations | length)}'
 ```
@@ -252,5 +256,5 @@ certificate fields.
 
 - You have a stored artifact response with `artifact_id` and `version`.
 - You have a present response with `token`, `url`, and `expires_at`.
-- You relayed `url` to the human.
+- You opened the returned `url` for the human when possible and printed it as fallback.
 - A bogus `/present/not-a-real-token` returns 404.

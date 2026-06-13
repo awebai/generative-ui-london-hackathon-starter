@@ -250,10 +250,17 @@ aw id request POST "$SERVER_ORIGIN/v1/present" --team-auth --raw \
   | tee evidence/11-present-response.json
 ```
 
-Relay:
+Open the rendered view for the human when you have desktop access, and always
+print the URL as fallback:
 
 ```bash
-jq -r '.url' evidence/11-present-response.json
+PRESENT_URL=$(jq -r '.url' evidence/11-present-response.json)
+if command -v open >/dev/null 2>&1; then
+  open "$PRESENT_URL" || true
+elif command -v xdg-open >/dev/null 2>&1; then
+  xdg-open "$PRESENT_URL" || true
+fi
+printf 'Presented view: %s\n' "$PRESENT_URL"
 ```
 
 ## Validation checklist before storing
