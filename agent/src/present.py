@@ -25,12 +25,6 @@ def _server_origin() -> str:
     return os.getenv("SERVER_ORIGIN", DEFAULT_SERVER_ORIGIN).rstrip("/")
 
 
-def _public_origin() -> str:
-    # The server returns the canonical public URL from POST /v1/present. This
-    # fallback only keeps local/dev branches usable before the server exists.
-    return os.getenv("NEXT_PUBLIC_APP_ORIGIN", "http://localhost:3000").rstrip("/")
-
-
 def _aw_cwd() -> str | None:
     # Optional escape hatch for demos where the FastAPI agent runs outside the
     # initialized aw workspace. If unset, aw uses the agent process cwd/env.
@@ -86,10 +80,6 @@ def _coerce_envelope(surface_or_doc: str) -> dict[str, Any]:
         if isinstance(parsed, dict):
             if isinstance(parsed.get("a2ui_operations"), list):
                 return parsed
-            if isinstance(parsed.get("envelope"), dict):
-                nested = parsed["envelope"]
-                if isinstance(nested.get("a2ui_operations"), list):
-                    return nested
         if isinstance(parsed, list):
             return {"a2ui_operations": parsed}
 
@@ -147,15 +137,15 @@ def present_to_human(
         ttl_seconds: Optional presentation-link lifetime. Defaults to 24h.
     """
 
-    envelope = _coerce_envelope(surface_or_doc)
-    artifact_body: dict[str, Any] = {"kind": "a2ui", "envelope": envelope}
+    a2ui_envelope = _coerce_envelope(surface_or_doc)
+    artifact_body: dict[str, Any] = {"a2ui": a2ui_envelope}
     if slug:
         artifact_body["slug"] = slug
 
     try:
         artifact = _run_aw_request("POST", "/v1/artifacts", artifact_body)
-        artifact_id = artifact.get("artifact_id") or artifact.get("id")
-        version = artifact.get("version") or artifact.get("version_number")
+        artifact_id = artifact.get("artifact_id")
+        version = artifact.get("version")
         if not isinstance(artifact_id, str):
             raise RuntimeError(
                 "POST /v1/artifacts response did not include artifact_id"
@@ -175,14 +165,6 @@ def present_to_human(
         )
 
     url = link.get("url")
-    token = link.get("token")
-    # Prefer the frontend presentation route when a token is available; the
-    # server's public GET returns JSON, while /present/[token] renders it.
-    if isinstance(token, str) and token:
-        return f"{_public_origin()}/present/{token}"
     if isinstance(url, str) and url:
         return url
-    return (
-        "Presentation link minted, but the server response did not include "
-        "url or token."
-    )
+    return "Presentation link minted, but the server response did not include url."

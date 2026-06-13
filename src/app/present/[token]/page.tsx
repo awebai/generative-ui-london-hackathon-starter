@@ -1,7 +1,7 @@
 import { PresentSurface } from "./PresentSurface";
 
 type A2UIOp = Record<string, unknown>;
-type PresentEnvelope = { a2ui_operations: A2UIOp[] };
+type PresentResponse = { a2ui: unknown; expires_at: string };
 
 type PresentPageProps = {
   params: Promise<{ token: string }>;
@@ -9,9 +9,9 @@ type PresentPageProps = {
 
 export default async function PresentPage({ params }: PresentPageProps) {
   const { token } = await params;
-  const envelope = await fetchPresentation(token);
+  const operations = await fetchPresentation(token);
 
-  if (!envelope) {
+  if (!operations) {
     return <LinkUnavailable />;
   }
 
@@ -32,14 +32,14 @@ export default async function PresentPage({ params }: PresentPageProps) {
           </p>
         </header>
         <section className="a2ui-surface rounded-[var(--radius-lg)] border border-[var(--line)] bg-[var(--surface)] p-4 shadow-[0_16px_50px_rgba(10,10,20,0.08)] md:p-6">
-          <PresentSurface operations={envelope.a2ui_operations} />
+          <PresentSurface operations={operations} />
         </section>
       </div>
     </main>
   );
 }
 
-async function fetchPresentation(token: string): Promise<PresentEnvelope | null> {
+async function fetchPresentation(token: string): Promise<A2UIOp[] | null> {
   let response: Response;
   try {
     response = await fetch(
@@ -58,32 +58,29 @@ async function fetchPresentation(token: string): Promise<PresentEnvelope | null>
   }
 
   const data: unknown = await response.json();
-  return normalizeEnvelope(data);
+  if (!isPresentResponse(data)) return null;
+  return normalizeA2UI(data.a2ui);
 }
 
 function serverOrigin() {
   return (process.env.SERVER_ORIGIN ?? "http://localhost:8200").replace(/\/$/, "");
 }
 
-function normalizeEnvelope(data: unknown): PresentEnvelope | null {
-  if (isEnvelope(data)) return data;
-  if (Array.isArray(data)) return { a2ui_operations: data as A2UIOp[] };
-  if (!data || typeof data !== "object") return null;
-
-  const obj = data as Record<string, unknown>;
-  if (isEnvelope(obj.envelope)) return obj.envelope;
-  if (obj.artifact && typeof obj.artifact === "object") {
-    const artifact = obj.artifact as Record<string, unknown>;
-    if (isEnvelope(artifact.envelope)) return artifact.envelope;
-  }
-  return null;
+function normalizeA2UI(a2ui: unknown): A2UIOp[] | null {
+  if (Array.isArray(a2ui)) return a2ui as A2UIOp[];
+  if (!a2ui || typeof a2ui !== "object") return null;
+  const envelope = a2ui as Record<string, unknown>;
+  return Array.isArray(envelope.a2ui_operations)
+    ? (envelope.a2ui_operations as A2UIOp[])
+    : null;
 }
 
-function isEnvelope(data: unknown): data is PresentEnvelope {
+function isPresentResponse(data: unknown): data is PresentResponse {
   return (
     !!data &&
     typeof data === "object" &&
-    Array.isArray((data as Record<string, unknown>).a2ui_operations)
+    "a2ui" in data &&
+    typeof (data as Record<string, unknown>).expires_at === "string"
   );
 }
 
