@@ -286,6 +286,134 @@ const Text = ({
   </p>
 );
 
+const Markdown = ({ props }: RendererProps<{ text: string }>) => {
+  const lines = String(props.text ?? "").split(/\r?\n/);
+  const blocks: ReactNode[] = [];
+  let index = 0;
+
+  const pushList = (ordered: boolean) => {
+    const items: string[] = [];
+    while (index < lines.length) {
+      const line = lines[index];
+      const match = ordered
+        ? line.match(/^\s*\d+[.)]\s+(.+)$/)
+        : line.match(/^\s*[-*]\s+(.+)$/);
+      if (!match) break;
+      items.push(match[1]);
+      index += 1;
+    }
+    const Tag = ordered ? "ol" : "ul";
+    blocks.push(
+      <Tag
+        key={`list-${index}-${blocks.length}`}
+        className={clsx(
+          "flex flex-col gap-2 text-[14px] text-[var(--ink-2)] leading-relaxed pl-0 m-0 list-none",
+        )}
+      >
+        {items.map((item, itemIndex) => (
+          <li key={itemIndex} className="flex items-start gap-2.5">
+            {ordered ? (
+              <span className="mono tabular-nums text-[12px] text-[var(--ink)] font-medium leading-relaxed min-w-[1.25rem] flex-none">
+                {itemIndex + 1}.
+              </span>
+            ) : (
+              <span className="mt-2 w-1.5 h-1.5 rounded-full bg-[var(--lilac)] flex-none" />
+            )}
+            <span className="flex-1 min-w-0">{inlineMarkdown(item)}</span>
+          </li>
+        ))}
+      </Tag>,
+    );
+  };
+
+  while (index < lines.length) {
+    const raw = lines[index];
+    const line = raw.trim();
+    if (!line) {
+      index += 1;
+      continue;
+    }
+    if (/^\s*[-*]\s+/.test(raw)) {
+      pushList(false);
+      continue;
+    }
+    if (/^\s*\d+[.)]\s+/.test(raw)) {
+      pushList(true);
+      continue;
+    }
+    const heading = line.match(/^(#{1,3})\s+(.+)$/);
+    if (heading) {
+      const level = heading[1].length;
+      const Tag = level === 1 ? "h2" : level === 2 ? "h3" : "h4";
+      blocks.push(
+        <Tag
+          key={`heading-${index}`}
+          className={clsx(
+            level === 1
+              ? "text-[20px]"
+              : level === 2
+                ? "text-[16px]"
+                : "text-[14px]",
+            "font-semibold tracking-tight text-[var(--ink)] leading-tight",
+          )}
+        >
+          {inlineMarkdown(heading[2])}
+        </Tag>,
+      );
+      index += 1;
+      continue;
+    }
+
+    const paragraph = [line];
+    index += 1;
+    while (index < lines.length) {
+      const next = lines[index];
+      if (!next.trim() || /^\s*([-*]|\d+[.)])\s+/.test(next) || /^#{1,3}\s+/.test(next.trim())) {
+        break;
+      }
+      paragraph.push(next.trim());
+      index += 1;
+    }
+    blocks.push(
+      <p key={`p-${index}`} className="text-[14px] leading-relaxed text-[var(--ink-2)]">
+        {inlineMarkdown(paragraph.join(" "))}
+      </p>,
+    );
+  }
+
+  return <div className="flex flex-col gap-3">{blocks}</div>;
+};
+
+function inlineMarkdown(text: string): ReactNode[] {
+  const nodes: ReactNode[] = [];
+  const pattern = /(\[([^\]]+)\]\((https?:\/\/[^\s)]+)\))|(\*\*([^*]+)\*\*)|(\*([^*]+)\*)/g;
+  let last = 0;
+  let match: RegExpExecArray | null;
+  while ((match = pattern.exec(text)) !== null) {
+    if (match.index > last) nodes.push(text.slice(last, match.index));
+    if (match[2] && match[3]) {
+      nodes.push(
+        <a
+          key={`a-${match.index}`}
+          href={match[3]}
+          target="_blank"
+          rel="noreferrer noopener"
+          className="font-medium text-[#3b3a8a] underline decoration-[var(--lilac)] underline-offset-2"
+        >
+          {match[2]}
+        </a>,
+      );
+    } else if (match[5]) {
+      nodes.push(<strong key={`b-${match.index}`} className="font-semibold text-[var(--ink)]">{match[5]}</strong>);
+    } else if (match[7]) {
+      nodes.push(<em key={`i-${match.index}`}>{match[7]}</em>);
+    }
+    last = pattern.lastIndex;
+  }
+  if (last < text.length) nodes.push(text.slice(last));
+  return nodes;
+}
+
 const Overline = ({ props }: RendererProps<{ text: string }>) => (
   <span className="mono text-[11px] uppercase tracking-[0.14em] text-[var(--ink)] font-medium">
     {props.text}
@@ -1058,6 +1186,7 @@ export const renderers = {
   Divider,
   Heading,
   Text,
+  Markdown,
   Overline,
   Badge,
   Callout,

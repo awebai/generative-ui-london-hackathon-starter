@@ -23,34 +23,34 @@ export default function Home() {
             </span>
           </>
         }
-        subtitle="Drop a PDF. Watch one agent paint a fixed dashboard from a hand-authored layout, and another agent invent the UI for any follow-up question. Both using the same 21-component catalog."
+        subtitle="Ask the team's concierge to research the live web with LinkUp. It composes a cited A2UI surface from the catalog, stores it as an artifact, and returns a safe presentation link."
       />
 
       <main className="flex-1 max-w-[1320px] mx-auto px-6 py-12 w-full">
         <div className="grid md:grid-cols-2 gap-5">
           <ModeCard
             href="/fixed"
-            badge="01 · FIXED SCHEMA"
-            title="Same layout, your data"
-            blurb="You author the dashboard once. The agent only fills in the numbers. Fast, predictable, brand-locked."
+            badge="01 · CONCIERGE"
+            title="Research → cited surface"
+            blurb="The team concierge searches with LinkUp, writes a markdown summary, cites sources, and paints A2UI from the shared catalog."
             bullets={[
-              "One JSON file is the dashboard layout",
-              "Agent extracts KPIs, trend, share, table rows from the PDF",
-              "Surface streams in instantly. No second LLM call to render",
+              "Live web search via the agent's LinkUp tool",
+              "Markdown summaries render with links, lists, and emphasis",
+              "A2UI surfaces stream in the canvas and can be presented by link",
             ]}
-            cta="Open the fixed demo"
+            cta="Open the concierge"
           />
           <ModeCard
             href="/dynamic"
-            badge="02 · DYNAMIC SCHEMA"
-            title="Agent picks the shape"
-            blurb="No pre-written layout. The agent answers your question, then a second LLM pass invents the UI from the catalog."
+            badge="02 · PRESENT"
+            title="Safe links for humans"
+            blurb="After composing the surface, the concierge calls present_to_human so the human opens a clean read-only /present link."
             bullets={[
-              "Pick any of the 21 catalog components, in any combination",
-              "Stat for single numbers · LineChart for trends · DataTable for lists",
-              "Same brand tokens. The agent never sees CSS",
+              "Agent authenticates with real AWID team-auth",
+              "Server stores the A2UI artifact and mints a capability token",
+              "The frontend reuses the same CopilotKit A2UI renderer",
             ]}
-            cta="Open the dynamic demo"
+            cta="Open the presentation flow"
           />
         </div>
 
@@ -61,7 +61,7 @@ export default function Home() {
                 The design system
               </span>
               <h2 className="text-[22px] font-semibold tracking-tight mt-1">
-                21 components, one catalog
+                22 components, one catalog
               </h2>
             </div>
             <Link
@@ -128,7 +128,7 @@ const CATALOG_GROUPS = [
   },
   {
     short: "TXT",
-    items: ["Heading", "Text", "Overline", "Badge", "Callout", "BulletList"],
+    items: ["Heading", "Text", "Markdown", "Overline", "Badge", "Callout", "BulletList"],
   },
   {
     short: "DATA",

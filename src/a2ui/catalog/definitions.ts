@@ -110,6 +110,12 @@ export const definitions = {
     }),
   },
 
+  Markdown: {
+    description:
+      "Markdown prose for cited research summaries. Supports headings, paragraphs, bold/italic, links, and ordered/unordered lists.",
+    props: z.object({ text: stringOrPath }),
+  },
+
   Overline: {
     description:
       "Tiny ALL-CAPS mono label that sits above a heading. Common typography pattern (Material Design calls this 'Overline'). Use for section categories like 'OVERVIEW · Q1 2025'.",

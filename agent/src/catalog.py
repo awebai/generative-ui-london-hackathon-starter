@@ -40,6 +40,8 @@ component must have `id: "root"`.
 ### Content
 - **Heading** { text: string|{path}, level?: "1"|"2"|"3" }
 - **Text** { text: string|{path}, tone?: default|muted, size?: sm|md|lg, weight?: regular|medium|semibold }
+- **Markdown** { text: string|{path} }
+    Markdown prose for cited research summaries. Supports headings, paragraphs, bold/italic, links, and ordered/unordered lists.
 - **Overline** { text: string|{path} }
     Tiny ALL-CAPS mono label above a heading. Also known as "overline" in typography.
 - **Badge** { label: string|{path}, tone?: neutral|positive|warning|danger|info }

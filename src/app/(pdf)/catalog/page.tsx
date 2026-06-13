@@ -322,6 +322,27 @@ const EXAMPLES: Example[] = [
   },
   {
     group: "content",
+    name: "Markdown",
+    blurb:
+      "Research prose with headings, emphasis, links, and lists. Used by the LinkUp concierge for cited summaries and source lists.",
+    surface: {
+      components: [
+        {
+          id: "root",
+          component: "Card",
+          child: "md",
+          tone: "lilac",
+        },
+        {
+          id: "md",
+          component: "Markdown",
+          text: "## Cited summary\n**LinkUp** powers live research while [A2UI](https://docs.copilotkit.ai/) keeps the result renderer-safe.\n\n- Compose markdown prose\n- Include source links\n- Present the artifact by URL",
+        },
+      ],
+    },
+  },
+  {
+    group: "content",
     name: "Overline",
     blurb:
       "Tiny ALL-CAPS mono label that sits above a heading. The 'overline' typography pattern (Material Design term). Use for category labels.",
@@ -596,7 +617,7 @@ export default function CatalogPage() {
             <span className="text-[var(--muted)]">is allowed to draw.</span>
           </>
         }
-        subtitle="One catalog, one set of React renderers, one set of brand tokens. Both demos compose from this. The fixed dashboard via a pre-authored layout, the dynamic Q&A by inventing one per question."
+        subtitle="One catalog, one set of React renderers, one set of brand tokens. The LinkUp concierge composes cited research surfaces from these components, including markdown summaries and source links."
       />
 
       <main className="flex-1 max-w-[1320px] mx-auto px-6 py-8 w-full">

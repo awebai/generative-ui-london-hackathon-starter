@@ -5,7 +5,7 @@ import { createMirrorActivityRenderer } from "@/a2ui/MirrorRenderer";
 
 /* Both agents send A2UI surfaces via activity messages. We intercept those
  * with our mirror renderer and forward them to the page-level SurfaceCanvas,
- * so the dashboard renders at full canvas size instead of as a chat bubble.
+ * so the research surface renders at full canvas size instead of as a chat bubble.
  *
  * The pill the renderer leaves behind in chat is the user-visible breadcrumb
  * ("surface → rendered in the canvas"). */
