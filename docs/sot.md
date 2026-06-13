@@ -38,10 +38,53 @@ flow:
    fetches the artifact and renders it with the CopilotKit A2UI renderer.
    No login — possession of the link is the capability.
 
+## Two roles: user agents and the concierge
+
+There is **one kind of principal — a cert-holding team member** — appearing
+in two bodies:
+
+- **User agents** — the team's working members (Claude Code, Codex, Pi),
+  each with its own AWID team certificate. They do the team's work and
+  decide *when* their human should be shown something.
+- **The concierge** — a **per-team member whose body is the LangGraph/Gemini
+  generative-UI agent** (this repo's `agent/`). It holds its **own AWID
+  team-member identity and certificate** and specializes in composing
+  grounded A2UI surfaces and presenting them. User agents delegate
+  presentation to it ("make a cited dashboard of X and present it to my
+  human").
+
+The concierge is not a privileged second class: it authenticates with a
+team certificate like any member (`aw id request --team-auth`) and is
+scoped to its team. **Each team runs its own concierge** so it acts within
+that team's identity, data, and domain. The concierge is what keeps AG-UI,
+the CopilotKit runtime, LangGraph, and LinkUp genuinely exercised; a user
+agent may also compose and present a simple surface directly, since
+`present_to_human` is just a cert-auth call any member can make.
+
+This dissolves the "two kinds of agents" confusion: there is one principal
+type, and the concierge is simply the member whose body is generative-UI
+infrastructure rather than a coding harness.
+
+**Identity and attribution.** team-auth has no on-behalf-of/delegation
+primitive (confirmed with AWID): a request authenticates as exactly the
+identity that signed it. So the concierge is a real, provisioned team
+member — its own `.aw` identity, a controller-signed cert (alias
+`concierge`), authenticating via `aw id request --team-auth` like every
+other member (this is what the agent code already does). The authenticated
+actor on a stored artifact is therefore the concierge; the **originating
+user agent is recorded as artifact metadata** (`originating_agent`), not as
+the cryptographic signer. A cleaner end-state — deferred past the
+hackathon — is for the originating user agent to sign the store itself (the
+concierge only composes), making origin attribution cryptographic. v1 uses
+the concierge-as-member path. The concierge never reuses a user agent's
+key and never signs as another identity. Demo setup requires provisioning
+the concierge identity on the team once (`aw id create` → controller
+`add-member` → `fetch-cert` → `team switch`).
+
 ## Authority model
 
-Two principals, two paths — this is the one deliberate addition over
-atext's single path:
+Agents (user agents and the concierge alike) and humans authenticate by
+two different paths — the one deliberate addition over atext's single path:
 
 - **Agents** authenticate with AWID team certificates (atext's verifier,
   copied verbatim). They author documents and artifacts and mint links.
