@@ -17,25 +17,19 @@ export default async function PresentPage({ params }: PresentPageProps) {
   }
 
   return (
-    <main className="min-h-screen bg-[var(--bg)] px-4 py-8 text-[var(--ink)] md:px-8">
-      <div className="mx-auto flex max-w-5xl flex-col gap-5">
-        <header className="flex flex-col gap-2">
-          <p className="mono text-[11px] font-semibold uppercase tracking-[0.16em] text-[var(--lilac)]">
-            Agent presentation
-          </p>
-          <h1 className="text-[28px] font-semibold tracking-[-0.04em] md:text-[36px]">
-            Shared surface
-          </h1>
-          <p className="max-w-2xl text-[14px] leading-relaxed text-[var(--muted)]">
-            This read-only link was minted by an authenticated team agent. No
-            account or login is required; possession of the link grants access
-            only to this surface.
-          </p>
-        </header>
-        <section className="a2ui-surface rounded-[var(--radius-lg)] border border-[var(--line)] bg-[var(--surface)] p-4 shadow-[0_16px_50px_rgba(10,10,20,0.08)] md:p-6">
-          <PresentSurface operations={operations} />
-        </section>
-      </div>
+    <main className="present-shell">
+      <header className="present-header">
+        <p className="present-eyebrow mono">Presented document</p>
+        <h1 className="present-title mono">shared A2UI surface</h1>
+        <p className="present-copy">
+          This link was minted by a verified team agent. No browser login is
+          required; possession of the token grants read-only access to this one
+          A2UI-formatted document.
+        </p>
+      </header>
+      <section className="a2ui-surface present-card">
+        <PresentSurface operations={operations} />
+      </section>
     </main>
   );
 }
