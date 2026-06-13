@@ -1,0 +1,154 @@
+# genui Source of Truth
+
+`genui` is an **agent-first generative-UI app**: agents on an AWID team
+work on shared team documents, and at any moment an agent can generate an
+**A2UI artifact** and **present it to its human via a safe link** — a
+rendered surface the human opens in a browser with no account, no login.
+The agent is the user; the human is *summoned* by the agent to look at
+something, exactly once per artifact.
+
+It fuses two proven pieces:
+
+- **atext's spine** (copied from `../atext`, billing excluded): a BYOT
+  cert-auth relying party — agents authenticate with the request-bound v2
+  team-auth envelope (`aw id request --team-auth`), every request scoped
+  to the certificate's `team_id`, fail-closed. Team documents are
+  append-only versioned UTF-8 text, every version attributed to the
+  verified member.
+- **the CopilotKit / AG-UI / A2UI generative-UI stack** (already wired in
+  this repo): the agent emits declarative A2UI envelopes
+  (`createSurface` / `updateComponents` / `updateDataModel`) against the
+  21-component catalog; `@copilotkit/a2ui-renderer` turns them into live
+  React.
+
+## The core idea
+
+An **A2UI artifact is a versioned document.** A2UI envelopes are
+structured JSON — i.e. text — so the atext store holds them natively. The
+flow:
+
+1. An agent (cert-authenticated, working on team documents) generates an
+   A2UI surface — from a document, a diff, a summary, an approval ask.
+2. It stores the surface as a team-scoped, attributed artifact and **mints
+   a presentation link**: an opaque, high-entropy, expiring capability
+   token bound to one artifact version.
+3. The agent hands the link to its human (the same primitive as a payment
+   link: agent-minted, scoped, account-less).
+4. The human opens `/present/<token>` in a browser; the Next.js frontend
+   fetches the artifact and renders it with the CopilotKit A2UI renderer.
+   No login — possession of the link is the capability.
+
+## Authority model
+
+Two principals, two paths — this is the one deliberate addition over
+atext's single path:
+
+- **Agents** authenticate with AWID team certificates (atext's verifier,
+  copied verbatim). They author documents and artifacts and mint links.
+  Authoritative, team-scoped, fail-closed.
+- **Humans** viewing a presentation authenticate by **possession of the
+  capability token** only. A token is opaque (≥256 bits), bound to a
+  single artifact version, expiring (default 24h), and read-only. Unknown
+  or expired tokens return 404 (never reveal existence). The token grants
+  read of exactly one rendered surface — nothing else, no team scope, no
+  write.
+
+genui never holds controller or namespace keys; AWID remains authoritative
+for team keys and revocation. Stored text and A2UI envelopes are
+server-readable (no E2E-encryption claim).
+
+## Components and processes
+
+- **`server/`** — the atext spine as a standalone FastAPI relying party
+  (Python 3.12, pgdbm, the copied `auth.py`). Owns documents, versions,
+  A2UI artifacts, and presentation links. Cert-auth on the authoring side;
+  capability-token on the public `/present` read side.
+- **`agent/`** — the existing LangGraph/FastAPI AG-UI agent, plus a
+  `present_to_human` tool that POSTs a generated surface to `server/`,
+  mints a link, and returns the safe URL.
+- **`src/`** — the existing Next.js + CopilotKit frontend, plus a
+  `/present/[token]` route that fetches an artifact by token and renders
+  it with `@copilotkit/a2ui-renderer`. The existing chat/canvas demo stays
+  intact (it satisfies the A2UI-firing requirement).
+
+Three dev processes: Next.js (`:3000`), agent (`:8123`), server
+(`:8200`). A Makefile target and the compose file run all three.
+
+## API shape (server/)
+
+Agent-facing (team-cert auth, v2 envelope, scoped to the cert's team):
+- `POST /v1/documents`, `GET /v1/documents`, `GET /v1/documents/{slug}`,
+  `GET|POST /v1/documents/{slug}/versions` — copied from atext.
+- `POST /v1/artifacts` — store an A2UI surface (the envelope JSON) as a
+  team-scoped, attributed artifact; returns its id + version.
+- `GET /v1/artifacts`, `GET /v1/artifacts/{id}` — list/read (cert-auth).
+- `POST /v1/present` — mint a presentation link for an artifact version;
+  body `{artifact_id, version?, ttl_seconds?}`; returns
+  `{token, url, expires_at}`.
+
+Public (capability-token, no cert):
+- `GET /present/{token}` — returns the A2UI envelope JSON for the bound
+  artifact version if the token is valid and unexpired; else 404.
+
+Ops: `/live`, `/ready`, `/health`.
+
+## Data model (server/)
+
+Reuse atext's Team, Document, Document version verbatim. New:
+
+- **Artifact** — `artifact_id` (uuid), `team_id`, optional `slug`,
+  `kind` (`a2ui`), creator identity fields (did_key/did_aw/address/alias,
+  certificate_id), timestamps. Append-only **artifact versions** hold the
+  envelope JSON (`createSurface`/`updateComponents`/`updateDataModel` ops),
+  monotonic version number, creator identity.
+- **Presentation link** — `token` (opaque, unique), `artifact_id`,
+  `version_number`, `team_id`, `created_by_did_key`, `expires_at`,
+  `revoked_at` (nullable), `created_at`. Lookups are by token; expired or
+  revoked → 404.
+
+## Excluded from atext (no payment)
+
+No subscription table, no caps, no `GET /v1/billing`, no Stripe, no 402.
+Drop `migrations/002_subscriptions.sql`, `test_billing_caps.py`, and all
+billing routes/models/config when copying.
+
+## Hackathon requirements (must all hold)
+
+- **CopilotKit** is used (required) — the runtime + `@copilotkit/a2ui-renderer`
+  render both the live chat canvas and the `/present` view.
+- **A2UI is firing** — real `createSurface`/`updateComponents` envelopes
+  fire and are renderable; keep 1–2 sample envelopes for submission.
+- **AG-UI** carries envelopes agent→frontend (existing wiring).
+- Submission copy names **Google DeepMind, CopilotKit, A2A Net, Linkup,
+  Redis**.
+- Deliverables: public repo, demo URL (Vercel), 30s video, one-paragraph
+  pitch, envelope sample. Backup: `OFFLINE=1` canned surface.
+- A2A interop (Seam #6) is optional/stretch.
+
+## Validation
+
+- Server unit/e2e reuses atext's no-mocks harness: local awid-service +
+  postgres, real certs via `aw id`, real signed requests. Cover: artifact
+  CRUD under cert-auth, team scoping (no cross-team artifact read),
+  link mint → token fetch → expiry → revoke, fail-closed.
+- Capability-token path tested for the security invariants: opaque,
+  single-version binding, expiry, 404 on unknown/expired, no team leakage.
+- A frontend smoke: `/present/<token>` renders a stored surface.
+- The existing CopilotKit demo keeps working (`pnpm dev`, the canned
+  prompt sequence).
+
+## Build process
+
+Build in this repo (`awebai/generative-ui-london-hackathon-starter`,
+locally `~/prj/awebai/genui`), branches off `main`, independent review
+before merge, coordinator verifies on merged main. Frozen starter versions
+stay pinned (see `FROZEN.md`); do not bump.
+
+## Non-goals (v1)
+
+- No payment of any kind.
+- No live human-steers-the-agent streaming in v1 — base case is
+  store-artifact → render-by-link. Live AG-UI relay to `/present` is a
+  later upgrade on the same spine.
+- No human accounts, OAuth, sessions, or write access from the `/present`
+  side.
