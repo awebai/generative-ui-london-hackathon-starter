@@ -617,7 +617,7 @@ export default function CatalogPage() {
             <span className="text-[var(--muted)]">is allowed to draw.</span>
           </>
         }
-        subtitle="One catalog, one set of React renderers, one set of brand tokens. The LinkUp concierge composes cited research surfaces from these components, including markdown summaries and source links."
+        subtitle="These are the renderer-safe building blocks the BYOT-authenticated concierge is allowed to draw: cards, layout, markdown briefs, charts, and source links. The same catalog renders both the live canvas and no-login /present pages."
       />
 
       <main className="flex-1 max-w-[1320px] mx-auto px-6 py-8 w-full">

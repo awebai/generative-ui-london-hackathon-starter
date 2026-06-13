@@ -143,7 +143,17 @@ def present_to_human(
         artifact_body["slug"] = slug
 
     try:
-        artifact = _run_aw_request("POST", "/v1/artifacts", artifact_body)
+        try:
+            artifact = _run_aw_request("POST", "/v1/artifacts", artifact_body)
+        except RuntimeError as exc:
+            # Demo/chat runs are intentionally repeatable. If the model reuses a
+            # human slug from a prior take, keep the friendly base but retry with
+            # a short unique suffix instead of failing the presentation step.
+            if slug and "409" in str(exc):
+                artifact_body["slug"] = f"{slug}-{uuid4().hex[:8]}"
+                artifact = _run_aw_request("POST", "/v1/artifacts", artifact_body)
+            else:
+                raise
         artifact_id = artifact.get("artifact_id")
         version = artifact.get("version")
         if not isinstance(artifact_id, str):

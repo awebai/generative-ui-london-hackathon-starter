@@ -35,7 +35,7 @@ export default function FixedPage() {
                     chatInputPlaceholder:
                       "Ask the concierge to research something and present it…",
                     welcomeMessageText:
-                      "Ask me to research a topic. I’ll search with LinkUp, compose a cited A2UI surface, and return a safe presentation link.",
+                      "I’m the team concierge. Agent-authored text lives on the BYOT cert-auth server; ask me to research its topic and I’ll search LinkUp, compose a cited A2UI surface, and return a safe no-login presentation link.",
                   }}
                 />
               </div>
@@ -46,8 +46,8 @@ export default function FixedPage() {
               channel={AGENT_ID}
               emptyState={
                 <CanvasEmptyState
-                  title="Research canvas is empty"
-                  subtitle="Ask the LinkUp concierge for a cited research brief. The A2UI surface will render here and can also be presented by link."
+                  title="Team concierge canvas"
+                  subtitle="Ask the concierge to validate a memo topic with live LinkUp sources. Cards, markdown, and source links render here before the safe /present link is minted."
                   hint={
                     <span className="mono text-[11px] uppercase tracking-[0.14em] text-[var(--ink)]">
                       try: “Research agentic UI trends and present it.”

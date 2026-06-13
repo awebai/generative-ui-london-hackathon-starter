@@ -29,9 +29,9 @@ export function SiteNav({
   active?: "home" | "fixed" | "dynamic" | "catalog";
 }) {
   const links: Array<{ href: string; label: string; key: typeof active }> = [
-    { href: "/", label: "Overview", key: "home" },
-    { href: "/fixed", label: "Concierge", key: "fixed" },
-    { href: "/dynamic", label: "Research flow", key: "dynamic" },
+    { href: "/", label: "Product", key: "home" },
+    { href: "/fixed", label: "Team + concierge", key: "fixed" },
+    { href: "/dynamic", label: "Live research", key: "dynamic" },
     { href: "/catalog", label: "Catalog", key: "catalog" },
   ];
   return (
@@ -41,7 +41,7 @@ export function SiteNav({
           <Logo size={22} />
           <span className="hidden sm:inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full border border-[var(--line)] bg-[var(--surface-soft)] text-[10.5px] uppercase tracking-[0.12em] mono text-[var(--muted)]">
             <span className="w-1.5 h-1.5 rounded-full bg-[var(--lilac)]" />
-            A2UI
+            BYOT · A2UI
           </span>
         </Link>
         <nav className="flex items-center gap-1">

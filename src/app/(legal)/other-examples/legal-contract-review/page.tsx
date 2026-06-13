@@ -28,8 +28,8 @@ export default function LegalContractReviewPage() {
         <h1 className="text-2xl font-semibold mb-3">Contract Review Copilot</h1>
         <p className="text-sm opacity-75 mb-6">
           This example is being finalized and is temporarily unavailable. The
-          live pdf-analyst demo — a fixed-schema dashboard and dynamic
-          generative UI, both from one shared A2UI catalog — is ready to
+          live BYOT concierge demo — team-scoped text plus LinkUp research,
+          cited A2UI, and safe no-login presentation links — is ready to
           explore.
         </p>
         <div className="flex items-center justify-center gap-4 text-sm">

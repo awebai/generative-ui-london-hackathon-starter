@@ -103,8 +103,8 @@ export default function OtherExamplesGalleryPage() {
         <header className="mb-8">
           <h1 className="text-3xl font-bold mb-2">Other Examples</h1>
           <p className="text-sm opacity-70 max-w-2xl">
-            Self-contained example modules that go one layer deeper than the
-            dashboard demo — second catalogs, custom visual primitives,
+            Self-contained example modules that sit beside the live BYOT
+            concierge demo — second catalogs, custom visual primitives, and
             domain-specific reading experiences. See{" "}
             <code className="text-xs opacity-80">other-examples/README.md</code>{" "}
             for the layout convention.
@@ -151,7 +151,7 @@ export default function OtherExamplesGalleryPage() {
 
         <footer className="mt-10 text-xs opacity-50">
           <Link href="/" className="hover:underline">
-            ← Back to dashboard
+            ← Back to demo
           </Link>
         </footer>
       </div>
