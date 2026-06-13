@@ -22,6 +22,77 @@ Why not Vercel Python serverless for the server:
 Vercel should host only the frontend renderer. The frontend needs `SERVER_ORIGIN`
 pointing at the public server origin for read-only token fetches.
 
+## Server container image
+
+Dockerfile: `server/Dockerfile`.
+
+Build from the repository root (not from `server/`) so the Dockerfile can copy
+`server/` into the image:
+
+```bash
+docker build -f server/Dockerfile -t genui-server:064e0fd .
+```
+
+Run locally/container-host style:
+
+```bash
+docker run --rm -p 8200:8200 \
+  -e GENUI_SERVER_DATABASE_URL="$NEON_DATABASE_URL" \
+  -e GENUI_SERVER_AWID_REGISTRY_URL=https://api.awid.ai \
+  -e GENUI_SERVER_PUBLIC_ORIGIN=https://api.<domain> \
+  -e GENUI_SERVER_PRESENTATION_ORIGIN=https://<frontend-domain> \
+  -e LINKUP_API_KEY="$LINKUP_API_KEY" \
+  genui-server:064e0fd
+```
+
+Startup behavior: `uvicorn atext.api:app` runs the FastAPI lifespan; the lifespan
+constructs `GenUIDatabase` and pgdbm applies pending migrations before the app
+reports startup complete. There is no separate migrate command in 064e0fd.
+
+Container smoke performed locally:
+
+```bash
+docker build -f server/Dockerfile -t genui-server-rescoped:test .
+docker run -d --rm -p 18200:8200 \
+  -e GENUI_SERVER_DATABASE_URL=postgresql://juanre@host.docker.internal:5432/<fresh-db> \
+  -e GENUI_SERVER_AWID_REGISTRY_URL=https://api.awid.ai \
+  -e GENUI_SERVER_PUBLIC_ORIGIN=http://127.0.0.1:18200 \
+  -e GENUI_SERVER_PRESENTATION_ORIGIN=http://127.0.0.1:3000 \
+  -e LINKUP_API_KEY=container-smoke-placeholder \
+  genui-server-rescoped:test
+curl -fsS http://127.0.0.1:18200/health
+```
+
+Result: health returned `{"status":"ok","service":"genui-server"}` and the
+fresh DB contained `teams`, `artifacts`, `presentation_links`, and
+`schema_migrations`, proving startup migrations ran from inside the container.
+No Neon secret was available in this worktree, so Operations should repeat the
+same smoke against a throwaway Neon branch before promoting.
+
+### Path-dependency gotchas
+
+`server/pyproject.toml` is convenient for local development but contains editable
+path deps:
+
+```toml
+awid-service = { path = "../../aweb/awid", editable = true }
+pgdbm = { path = "../../pgdbm", editable = true }
+```
+
+Those sibling directories are **not** present in a clean container-host build
+context. The Dockerfile therefore does not run a normal dependency-resolving
+`pip install .`/`uv sync` against those path deps. Instead it:
+
+- installs `awid-service` from the public `aweb` git repo at pinned commit
+  `d0baafa389b600c8b0a12525797d6e38726c5252`, subdirectory `awid`;
+- installs `pgdbm==0.4.1` from PyPI;
+- installs the local `genui-server` package with `--no-deps` after the runtime
+  deps are already present.
+
+If Operations changes either path dependency locally, update the Dockerfile pin
+before building. Longer-term, publish/pin both packages as normal registry
+artifacts or vendor wheels in CI to avoid git-at-build-time dependency.
+
 ## Server env vars for 064e0fd
 
 Required for the container-hosted server:
