@@ -2,13 +2,9 @@
 /**
  * pnpm smoke — Composite gate, the load-bearing CI check.
  *
- * pdf-analyst default swap: the default demo is now the FastAPI agent at
- * `agent/main.py` (POST /fixed, /dynamic, /legal on :8123), not the archived
- * PortKit langgraph-cli agent (now under other-examples/portkit/). The
- * langgraph.json graph probe was replaced by a FastAPI endpoint-registration
- * check (import the app, assert the three routes register — no live Gemini
- * call). Steps that need a running, Gemini-backed agent are SKIPs, gated
- * behind an env check, so smoke is exit-0 statically with no API key.
+ * GenUI's LangGraph/AG-UI sidecar is retired. The product path is the
+ * cert-auth server plus `/present` renderer; legacy agent probes now skip
+ * when `/fixed` has been removed.
  *
  * Runs (in order, failing fast):
  *   1. `pnpm verify-pins`               — lockfile / package.json drift
@@ -21,17 +17,9 @@
  *   5. offline envelope shape check     — validates public/offline-envelopes.json
  *                                         structure if present; SKIPPED when absent
  *                                         (it was archived with PortKit)
- *   6. agent endpoint probe             — import agent/main.py's FastAPI app and assert
- *                                         /fixed, /dynamic, /legal are registered
- *                                         (static import; no live model call)
- *   6a. offline /fixed probe            — with OFFLINE=1 and GEMINI_API_KEY removed,
- *                                         import the /fixed graph and invoke it
- *                                         in-process; assert the tool result carries
- *                                         real A2UI surface ops (createSurface /
- *                                         updateComponents / updateDataModel). FAILS
- *                                         loudly if the no-key offline path errors or
- *                                         emits no surface. No uvicorn, no port, no key.
- *   7. agent connectivity probe (live)  — SKIPPED when OFFLINE=1 or no GEMINI_API_KEY
+ *   6. legacy agent import probe        — import agent/main.py if present
+ *   6a. offline /fixed probe            — SKIPPED after sidecar retirement
+ *   7. legacy agent connectivity probe  — SKIPPED when no GEMINI_API_KEY
  *
  * Exit non-zero if any step fails. Machine-parsable summary at the end.
  */
@@ -106,13 +94,11 @@ function findWidgetJsons(): string[] {
   return out;
 }
 
-// The FastAPI endpoints the pdf-analyst default agent must register. The
-// endpoint probe (below) imports agent/main.py and asserts each of these
-// resolves to a registered route. /fixed + /dynamic are the pdf-analyst
-// surfaces; /legal is the in-repo legal-contract-review example, registered
-// defensively (main.py logs + skips it if its cross-example import fails).
-const REQUIRED_AGENT_ENDPOINTS = ["/fixed", "/dynamic"];
-const OPTIONAL_AGENT_ENDPOINTS = ["/legal"];
+// The LangGraph/AG-UI agent sidecar is retired. Keep these empty so the
+// legacy smoke probe only verifies that any leftover agent/main.py imports
+// cleanly and does not require /fixed or /dynamic.
+const REQUIRED_AGENT_ENDPOINTS: string[] = [];
+const OPTIONAL_AGENT_ENDPOINTS: string[] = [];
 
 const STEPS: Step[] = [
   {
@@ -375,7 +361,7 @@ sys.exit(0)
     },
   },
   {
-    name: "offline /fixed probe (OFFLINE=1, no key → real A2UI surface)",
+    name: "offline /fixed probe (retired sidecar skip)",
     run: async () => {
       // The OFFLINE=1 gate. The endpoint probe above proves the app IMPORTS;
       // this proves the /fixed graph actually PAINTS a surface offline. It
@@ -387,12 +373,12 @@ sys.exit(0)
       // breaks the no-key offline emission (e.g. an eager Gemini client or a
       // broken stub) FAILS here loudly.
       const agentDir = join(REPO_ROOT, "agent");
-      const mainPy = join(agentDir, "main.py");
-      if (!existsSync(mainPy)) {
+      const fixedAgentPy = join(agentDir, "src", "fixed_agent.py");
+      if (!existsSync(fixedAgentPy)) {
         console.log(
-          `${YELLOW}!${RESET} ${DIM}agent/main.py not found. Skipping offline /fixed probe.${RESET}\n`,
+          `${YELLOW}!${RESET} ${DIM}agent/src/fixed_agent.py retired. Skipping offline /fixed probe.${RESET}\n`,
         );
-        return { pass: true, detail: "skipped (no agent/main.py)" };
+        return { pass: true, detail: "skipped (retired agent sidecar)" };
       }
       const venvPython = join(agentDir, ".venv", "bin", "python");
       const pythonBin = existsSync(venvPython) ? venvPython : "python3";
@@ -471,32 +457,10 @@ sys.exit(0)
     },
   },
   {
-    name: "agent connectivity probe (live one-shot tool call against Gemini)",
+    name: "legacy agent connectivity probe (retired sidecar skip)",
     run: async () => {
-      // LIVE check — requires a running, Gemini-backed agent + GEMINI_API_KEY.
-      // Reuses the standalone probe-gemini.sh script (exercises a tool call
-      // against the configured model). This is a SKIP whenever there's no key
-      // or OFFLINE=1, so `pnpm smoke` is exit-0 statically. Future
-      // improvement: "boot FastAPI agent → POST canned prompt to /fixed →
-      // assert a createSurface envelope" once there's a deterministic boot
-      // ritual we can call from CI.
-      const probeScript = join(REPO_ROOT, "scripts", "probe-gemini.sh");
-      if (!existsSync(probeScript)) {
-        console.log(`${YELLOW}!${RESET} ${DIM}probe-gemini.sh not found. Skipping.${RESET}\n`);
-        return { pass: true, detail: "skipped (no probe script)" };
-      }
-      // Skip when no key — let CI decide whether that's OK via OFFLINE=1.
-      if (!process.env.GEMINI_API_KEY && process.env.OFFLINE !== "1") {
-        console.log(
-          `${YELLOW}!${RESET} ${DIM}SKIP: live agent probe requires a running agent + GEMINI_API_KEY (neither GEMINI_API_KEY nor OFFLINE=1 set).${RESET}\n`,
-        );
-        return { pass: true, detail: "skipped (no key — requires running agent + key)" };
-      }
-      if (process.env.OFFLINE === "1") {
-        console.log(`${DIM}OFFLINE=1 — skipping live model probe.${RESET}\n`);
-        return { pass: true, detail: "skipped (OFFLINE=1)" };
-      }
-      return shellRun("bash", [probeScript]);
+      console.log(`${YELLOW}!${RESET} ${DIM}LangGraph sidecar retired. Skipping live Gemini agent probe.${RESET}\n`);
+      return { pass: true, detail: "skipped (retired agent sidecar)" };
     },
   },
 ];

@@ -10,6 +10,7 @@ from pgdbm import AsyncDatabaseManager
 from atext.auth import AWIDTeamCache, Principal, authenticate_request
 from atext.config import Settings, get_settings
 from atext.db import GenUIDatabase
+from atext.linkup_search import run_linkup_search
 from atext.models import (
     ArtifactCreateResponse,
     ArtifactResponse,
@@ -22,6 +23,8 @@ from atext.models import (
     DocumentVersion,
     PresentationResponse,
     PublicPresentationResponse,
+    SearchRequest,
+    SearchResponse,
 )
 from atext.repository import (
     append_version,
@@ -133,6 +136,15 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         database: AsyncDatabaseManager = Depends(db),
     ) -> list[dict]:
         return await list_versions(database, principal=actor, slug=slug)
+
+    @app.post("/v1/search", response_model=SearchResponse)
+    async def search_route(
+        request: Request,
+        actor: Principal = Depends(principal),
+    ) -> dict:
+        _ = actor
+        payload = SearchRequest.model_validate(await request.json())
+        return await run_linkup_search(payload, settings=resolved)
 
     @app.post("/v1/artifacts", response_model=ArtifactCreateResponse)
     async def create_artifact_route(

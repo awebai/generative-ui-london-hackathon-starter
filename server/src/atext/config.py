@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from pydantic import Field
+from pydantic import AliasChoices, Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -17,6 +17,10 @@ class Settings(BaseSettings):
     timestamp_skew_seconds: int = Field(default=300, ge=1)
     default_present_ttl_seconds: int = Field(default=86_400, ge=60)
     max_present_ttl_seconds: int = Field(default=604_800, ge=60)
+    linkup_api_key: str | None = Field(
+        default=None,
+        validation_alias=AliasChoices("LINKUP_API_KEY", "GENUI_SERVER_LINKUP_API_KEY", "linkup_api_key"),
+    )
 
 
 def get_settings() -> Settings:

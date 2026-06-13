@@ -11,7 +11,7 @@
  *
  * Exit 0 on all pass, 1 if any check failed.
  */
-import { execSync, spawnSync } from "node:child_process";
+import { execSync } from "node:child_process";
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import net from "node:net";
@@ -145,74 +145,33 @@ function parseSemverMinor(v: string): { major: number; minor: number } | null {
   });
 }
 
-// ----------------------- GEMINI_API_KEY set (or OFFLINE=1) -----------------------
+// ----------------------- LINKUP_API_KEY available for server search -----------------------
 {
-  const offline = process.env.OFFLINE === "1";
-  let gemini = process.env.GEMINI_API_KEY;
+  let linkup = process.env.LINKUP_API_KEY || process.env.GENUI_SERVER_LINKUP_API_KEY;
 
-  // Also check agent/.env and .env files
-  if (!gemini && !offline) {
-    for (const envPath of [join(REPO_ROOT, "agent", ".env"), join(REPO_ROOT, ".env")]) {
+  // Also check .env files. The key is server-side; it is not needed to render /present.
+  if (!linkup) {
+    for (const envPath of [join(REPO_ROOT, "server", ".env"), join(REPO_ROOT, ".env")]) {
       if (existsSync(envPath)) {
         const contents = readFileSync(envPath, "utf-8");
-        const match = contents.match(/^\s*GEMINI_API_KEY\s*=\s*(.+)\s*$/m);
+        const match = contents.match(/^\s*(?:LINKUP_API_KEY|GENUI_SERVER_LINKUP_API_KEY)\s*=\s*(.+)\s*$/m);
         if (match && match[1].trim() && match[1].trim() !== '""' && match[1].trim() !== "''") {
-          gemini = match[1].trim().replace(/^["']|["']$/g, "");
+          linkup = match[1].trim().replace(/^["']|["']$/g, "");
           break;
         }
       }
     }
   }
 
-  const ok = offline || !!gemini;
   add({
-    name: "GEMINI_API_KEY set",
-    pass: ok,
-    detail: offline
-      ? "OFFLINE=1 (key not required)"
-      : gemini
-        ? "found in env or agent/.env"
-        : "not set",
-    hint: ok
-      ? undefined
-      : "Get a free-tier key: https://aistudio.google.com/apikey — set in agent/.env, or run with OFFLINE=1 for the built-in /fixed sample dashboard",
-  });
-}
-
-// ----------------------- Network: Gemini reachable -----------------------
-{
-  // curl --head returns quickly even if it doesn't accept GETs; we just want
-  // a TCP/TLS handshake. Time out fast — venue Wi-Fi can flake.
-  const result = spawnSync(
-    "curl",
-    [
-      "-sS",
-      "--head",
-      "--max-time",
-      "5",
-      "-o",
-      "/dev/null",
-      "-w",
-      "%{http_code}",
-      "https://generativelanguage.googleapis.com",
-    ],
-    { encoding: "utf-8" },
-  );
-  const code = result.stdout?.trim() || "0";
-  // Any HTTP response means we reached the host. 0 means no connection.
-  const ok = code !== "0" && code !== "";
-  add({
-    name: "Network → Gemini",
-    pass: ok,
-    detail: ok ? `reachable (HTTP ${code})` : "unreachable",
-    hint: ok
-      ? undefined
-      : "Check internet connectivity. If on flaky venue Wi-Fi, run with OFFLINE=1 for the built-in /fixed sample dashboard",
+    name: "LINKUP_API_KEY for /v1/search",
+    pass: true,
+    detail: linkup ? "found in env or .env" : "not set (POST /v1/search will return 503)",
+    hint: linkup ? undefined : "Set LINKUP_API_KEY on the server for live LinkUp search.",
   });
 }
 
 // ----------------------- Port 3000 free (UI) -----------------------
-// ----------------------- Port 8123 free (agent) -----------------------
 async function portFree(port: number): Promise<boolean> {
   return new Promise((resolve) => {
     const tester = net.createServer();
@@ -234,16 +193,6 @@ async function main(): Promise<void> {
     hint: port3000
       ? undefined
       : "Another process holds port 3000. Find it: `lsof -i :3000` — kill it or run on another port",
-  });
-
-  const port8123 = await portFree(8123);
-  add({
-    name: "Port 8123 free",
-    pass: port8123,
-    detail: port8123 ? "free" : "in use",
-    hint: port8123
-      ? undefined
-      : "Another process holds port 8123. Find it: `lsof -i :8123` — kill it",
   });
 
   // Print results
