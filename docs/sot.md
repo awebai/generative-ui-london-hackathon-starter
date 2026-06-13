@@ -15,8 +15,8 @@ It fuses two proven pieces:
   to the certificate's `team_id`, fail-closed. Team documents are
   append-only versioned UTF-8 text, every version attributed to the
   verified member.
-- **the CopilotKit / AG-UI / A2UI generative-UI stack** (already wired in
-  this repo): the agent emits declarative A2UI envelopes
+- **the CopilotKit / A2UI generative-UI stack** (already wired in
+  this repo): agents emit declarative A2UI envelopes
   (`createSurface` / `updateComponents` / `updateDataModel`) against the
   21-component catalog; `@copilotkit/a2ui-renderer` turns them into live
   React.
@@ -38,55 +38,30 @@ flow:
    fetches the artifact and renders it with the CopilotKit A2UI renderer.
    No login — possession of the link is the capability.
 
-## Two roles: user agents and the concierge
+## User agents and server-side search
 
-There is **one kind of principal — a cert-holding team member** — appearing
-in two bodies:
+There is **one kind of principal — a cert-holding team member**: the team's
+working agents (Claude Code, Codex, Pi, etc.). Each agent has its own AWID
+team certificate, does the team's work, and decides *when* its human should
+be shown something.
 
-- **User agents** — the team's working members (Claude Code, Codex, Pi),
-  each with its own AWID team certificate. They do the team's work and
-  decide *when* their human should be shown something.
-- **The concierge** — a **per-team member whose body is the LangGraph
-  agent** (this repo's `agent/`), specialized as a **web-research agent**:
-  its tool is **LinkUp** (live web search), and it turns search results
-  into cited A2UI surfaces that it presents via a safe link. It holds its
-  **own AWID team-member identity and certificate**. User agents delegate
-  research and presentation to it ("research X and show my human"). LinkUp
-  lives here, in the deployed `agent/` — not in `server/`; the server has
-  no search endpoint.
-
-The concierge is not a privileged second class: it authenticates with a
-team certificate like any member (`aw id request --team-auth`) and is
-scoped to its team. **Each team runs its own concierge** so it acts within
-that team's identity, data, and domain. The concierge is what keeps AG-UI,
-the CopilotKit runtime, LangGraph, and LinkUp genuinely exercised; a user
-agent may also compose and present a simple surface directly, since
-`present_to_human` is just a cert-auth call any member can make.
-
-This dissolves the "two kinds of agents" confusion: there is one principal
-type, and the concierge is simply the member whose body is generative-UI
-infrastructure rather than a coding harness.
+There is no LangGraph concierge sidecar in v1. LinkUp lives in the cert-auth
+server as `POST /v1/search`, so a team's own agents can search the live web
+while working without exposing the LinkUp API key to clients. The same agent
+then composes an A2UI view of the document/research and calls
+`POST /v1/artifacts` + `POST /v1/present` directly with
+`aw id request --team-auth`.
 
 **Identity and attribution.** team-auth has no on-behalf-of/delegation
 primitive (confirmed with AWID): a request authenticates as exactly the
-identity that signed it. So the concierge is a real, provisioned team
-member — its own `.aw` identity, a controller-signed cert (alias
-`concierge`), authenticating via `aw id request --team-auth` like every
-other member (this is what the agent code already does). The authenticated
-actor on a stored artifact is therefore the concierge; the **originating
-user agent is recorded as artifact metadata** (`originating_agent`), not as
-the cryptographic signer. A cleaner end-state — deferred past the
-hackathon — is for the originating user agent to sign the store itself (the
-concierge only composes), making origin attribution cryptographic. v1 uses
-the concierge-as-member path. The concierge never reuses a user agent's
-key and never signs as another identity. Demo setup requires provisioning
-the concierge identity on the team once (`aw id create` → controller
-`add-member` → `fetch-cert` → `team switch`).
+identity that signed it. Stored documents and artifacts are attributed to the
+signing team member. The server never reuses one agent's key for another and
+never holds namespace/team controller keys.
 
 ## Authority model
 
-Agents (user agents and the concierge alike) and humans authenticate by
-two different paths — the one deliberate addition over atext's single path:
+Agents and humans authenticate by two different paths — the one deliberate
+addition over atext's single path:
 
 - **Agents** authenticate with AWID team certificates (atext's verifier,
   copied verbatim). They author documents and artifacts and mint links.
@@ -108,12 +83,11 @@ Artifacts and documents are strictly team-scoped. It is **impossible for
 one team to read, list, present, or otherwise reach another team's
 artifacts.** Enforced at every layer:
 
-1. **Per-team concierge identity.** Each team has its own concierge — a
-   distinct AWID member identity of that team, holding only that team's
-   certificate. It authenticates with its team's cert, so its request
-   Principal's `team_id` is its own team; it is structurally incapable of
-   producing a valid envelope for another team (it does not hold another
-   team's key). One concierge process must **never** hold multiple teams'
+1. **Per-agent team-member identity.** Each team agent has its own AWID
+   member identity and certificate. It authenticates with its team's cert,
+   so its request Principal's `team_id` is its own team; it is structurally
+   incapable of producing a valid envelope for another team unless it holds
+   that team's member key. One process must **never** hold multiple teams'
    member signing keys — per-team key isolation.
 2. **Team stamped from the certificate, never the body.** On every write
    (documents, artifacts, present-link mint) the stored `team_id` comes
@@ -138,35 +112,33 @@ artifacts.** Enforced at every layer:
 
 **Required negative tests (green before merge):** team B reading team A's
 `artifact_id` → 404; team B's list never includes team A's artifacts; team
-B's concierge minting a present link for team A's `artifact_id` → 404; a
+team B minting a present link for team A's `artifact_id` → 404; a
 write naming another team in the body lands in the caller's team (body
 ignored); public `/present` returns only the bound artifact with no
 team-identifying fields. These run as real cross-team e2e cases with two
 distinct provisioned teams.
 
-**Validated with AWID (Athena, 2026-06-13):** the per-team
-concierge-as-member model, cert validation, and the isolation rules above
-are confirmed sound — locked for v1. Hardening follow-ups she flagged,
-**deferred past the hackathon (production, not demo)**:
+**Validated with AWID (Athena, 2026-06-13):** the team-cert validation
+and isolation rules above are confirmed sound — locked for v1. Hardening
+follow-ups she flagged, **deferred past the hackathon (production, not demo)**:
 
-- **Explicit attribution schema.** Record `authenticated_actor` (the
-  signer = concierge) distinctly from `originating_agent` (metadata only;
-  or `origin_signature = verified` if a signed origin intent is added
-  later). Never let UI/copy claim the origin agent signed the server write.
+- **Explicit attribution schema.** Record the authenticated signer exactly
+  as verified by the cert-auth envelope. Never let UI/copy claim another
+  agent signed the server write.
 - **Hosted vs BYOT provisioning.** The controller `aw id team add-member`
   path is correct for BYOT (customer holds the controller key). For hosted
-  aweb-managed teams, provision the concierge member via the dashboard/API
-  hosted flow instead.
-- **Key custody.** One private signing key per team concierge; isolate key
-  material per team (KMS / secret namespace / container boundary) in any
-  multi-tenant process; never log private keys/certs/tokens; per-team
-  revocation/rotation that doesn't touch other teams.
+  aweb-managed teams, provision members via the dashboard/API hosted flow
+  instead.
+- **Key custody.** One private signing key per team member identity;
+  isolate key material per team/process (KMS / secret namespace / container
+  boundary) in any multi-tenant process; never log private keys/certs/tokens;
+  per-team revocation/rotation that doesn't touch other teams.
 - **Real-deploy checklist (drop the demo shortcuts).** Verify namespace
   control via the DNS TXT flow; create namespace/team with real controller
-  keys kept out of both the relying-party app and the concierge runtime
-  (backed up, KMS/operator-held, with rotation/revocation); publish/sync
-  team facts so verifiers resolve real AWID state; remove
-  `--skip-dns-verify` and local-registry assumptions from prod config.
+  keys kept out of both the relying-party app and agent runtimes (backed
+  up, KMS/operator-held, with rotation/revocation); publish/sync team facts
+  so verifiers resolve real AWID state; remove `--skip-dns-verify` and
+  local-registry assumptions from prod config.
 - **Present-link hardening.** Treat the capability token as bearer access:
   high entropy + expiry + revocation (have) **plus rate limiting**;
   responses expose no `team_id`/DIDs (have), but the artifact content
@@ -180,24 +152,26 @@ are confirmed sound — locked for v1. Hardening follow-ups she flagged,
   (Python 3.12, pgdbm, the copied `auth.py`). Owns documents, versions,
   A2UI artifacts, and presentation links. Cert-auth on the authoring side;
   capability-token on the public `/present` read side.
-- **`agent/`** — the LangGraph/FastAPI AG-UI agent, **reshaped from the
-  starter's pdf-analyst demo into the team's LinkUp web-research
-  concierge** (pdf-analyst content removed). Its LinkUp tool searches the
-  live web; it composes a cited A2UI surface and calls `present_to_human`
-  to POST it to `server/`, mint a link, and return the safe URL.
-- **`src/`** — the existing Next.js + CopilotKit frontend, plus a
-  `/present/[token]` route that fetches an artifact by token and renders
-  it with `@copilotkit/a2ui-renderer`. The existing chat/canvas demo stays
-  intact (it satisfies the A2UI-firing requirement).
+- **`agent/`** — retired for v1. The team's real agents are external
+  clients (Claude Code, Pi, etc.) that use `aw id request --team-auth`
+  directly. The old LangGraph concierge endpoints are not part of the
+  product path.
+- **`src/`** — the Next.js frontend, centered on `/present/[token]`: it
+  fetches an artifact by token and renders it with
+  `@copilotkit/a2ui-renderer`. The human surface is the present URL, not a
+  chat/canvas sidecar.
 
-Three dev processes: Next.js (`:3000`), agent (`:8123`), server
-(`:8200`). A Makefile target and the compose file run all three.
+Two dev processes: Next.js (`:3000`) and server (`:8200`). PostgreSQL is the
+server dependency; agents are separate terminal clients.
 
 ## API shape (server/)
 
 Agent-facing (team-cert auth, v2 envelope, scoped to the cert's team):
 - `POST /v1/documents`, `GET /v1/documents`, `GET /v1/documents/{slug}`,
   `GET|POST /v1/documents/{slug}/versions` — copied from atext.
+- `POST /v1/search` — server-side LinkUp search for the authenticated
+  team member; request `{query, depth?, max_results?}`; response contains
+  the LinkUp sourced answer payload. `LINKUP_API_KEY` stays server-side.
 - `POST /v1/artifacts` — store an A2UI surface (the envelope JSON) as a
   team-scoped, attributed artifact; returns its id + version.
 - `GET /v1/artifacts`, `GET /v1/artifacts/{id}` — list/read (cert-auth).
@@ -233,15 +207,15 @@ billing routes/models/config when copying.
 
 ## Hackathon requirements (must all hold)
 
-- **CopilotKit** is used (required) — the runtime + `@copilotkit/a2ui-renderer`
-  render both the live chat canvas and the `/present` view.
+- **CopilotKit** is used (required) — `@copilotkit/a2ui-renderer` renders
+  the `/present` view.
 - **A2UI is firing** — real `createSurface`/`updateComponents` envelopes
-  fire and are renderable; keep 1–2 sample envelopes for submission.
-- **AG-UI** carries envelopes agent→frontend (existing wiring).
+  are created by agents and renderable; keep 1–2 sample envelopes for
+  submission.
 - Submission copy names **Google DeepMind, CopilotKit, A2A Net, Linkup,
   Redis**.
 - Deliverables: public repo, demo URL (Vercel), 30s video, one-paragraph
-  pitch, envelope sample. Backup: `OFFLINE=1` canned surface.
+  pitch, envelope sample. Backup: a pre-minted presentation link/surface.
 - A2A interop (Seam #6) is optional/stretch.
 
 ## Validation
@@ -253,8 +227,9 @@ billing routes/models/config when copying.
 - Capability-token path tested for the security invariants: opaque,
   single-version binding, expiry, 404 on unknown/expired, no team leakage.
 - A frontend smoke: `/present/<token>` renders a stored surface.
-- The existing CopilotKit demo keeps working (`pnpm dev`, the canned
-  prompt sequence).
+- A server search test verifies `POST /v1/search` uses the server-side
+  LinkUp key and is cert-auth gated; live LinkUp validation uses a real key
+  outside unit tests.
 
 ## Build process
 
@@ -267,7 +242,7 @@ stay pinned (see `FROZEN.md`); do not bump.
 
 - No payment of any kind.
 - No live human-steers-the-agent streaming in v1 — base case is
-  store-artifact → render-by-link. Live AG-UI relay to `/present` is a
-  later upgrade on the same spine.
+  store-artifact → render-by-link. Live relay to `/present` is a later
+  upgrade on the same spine.
 - No human accounts, OAuth, sessions, or write access from the `/present`
   side.
