@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
-from typing import Annotated
 from uuid import UUID
 
 from fastapi import Depends, FastAPI, HTTPException, Request
@@ -73,8 +72,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     async def principal(
         request: Request,
-        database: Annotated[AsyncDatabaseManager, Depends(db)],
-        cache: Annotated[AWIDTeamCache, Depends(team_cache)],
+        database: AsyncDatabaseManager = Depends(db),
+        cache: AWIDTeamCache = Depends(team_cache),
     ) -> Principal:
         return await authenticate_request(request, settings=resolved, team_cache=cache, db=database)
 
@@ -87,8 +86,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     @app.post("/v1/documents", response_model=DocumentResponse)
     async def create_document_route(
         request: Request,
-        actor: Annotated[Principal, Depends(principal)],
-        database: Annotated[AsyncDatabaseManager, Depends(db)],
+        actor: Principal = Depends(principal),
+        database: AsyncDatabaseManager = Depends(db),
     ) -> dict:
         payload = CreateDocumentRequest.model_validate(await request.json())
         return await create_document(
@@ -101,16 +100,16 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     @app.get("/v1/documents", response_model=list[DocumentSummary])
     async def list_documents_route(
-        actor: Annotated[Principal, Depends(principal)],
-        database: Annotated[AsyncDatabaseManager, Depends(db)],
+        actor: Principal = Depends(principal),
+        database: AsyncDatabaseManager = Depends(db),
     ) -> list[dict]:
         return await list_documents(database, principal=actor)
 
     @app.get("/v1/documents/{slug}", response_model=DocumentResponse)
     async def get_document_route(
         slug: str,
-        actor: Annotated[Principal, Depends(principal)],
-        database: Annotated[AsyncDatabaseManager, Depends(db)],
+        actor: Principal = Depends(principal),
+        database: AsyncDatabaseManager = Depends(db),
     ) -> dict:
         return await get_document(database, principal=actor, slug=slug)
 
@@ -118,8 +117,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     async def append_version_route(
         slug: str,
         request: Request,
-        actor: Annotated[Principal, Depends(principal)],
-        database: Annotated[AsyncDatabaseManager, Depends(db)],
+        actor: Principal = Depends(principal),
+        database: AsyncDatabaseManager = Depends(db),
     ) -> dict:
         try:
             body = (await request.body()).decode("utf-8")
@@ -130,16 +129,16 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     @app.get("/v1/documents/{slug}/versions", response_model=list[DocumentVersion])
     async def list_versions_route(
         slug: str,
-        actor: Annotated[Principal, Depends(principal)],
-        database: Annotated[AsyncDatabaseManager, Depends(db)],
+        actor: Principal = Depends(principal),
+        database: AsyncDatabaseManager = Depends(db),
     ) -> list[dict]:
         return await list_versions(database, principal=actor, slug=slug)
 
     @app.post("/v1/artifacts", response_model=ArtifactCreateResponse)
     async def create_artifact_route(
         request: Request,
-        actor: Annotated[Principal, Depends(principal)],
-        database: Annotated[AsyncDatabaseManager, Depends(db)],
+        actor: Principal = Depends(principal),
+        database: AsyncDatabaseManager = Depends(db),
     ) -> dict:
         payload = CreateArtifactRequest.model_validate(await request.json())
         artifact = await create_artifact(database, principal=actor, kind="a2ui", slug=payload.slug, a2ui=payload.a2ui)
@@ -147,24 +146,24 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     @app.get("/v1/artifacts", response_model=list[ArtifactSummary])
     async def list_artifacts_route(
-        actor: Annotated[Principal, Depends(principal)],
-        database: Annotated[AsyncDatabaseManager, Depends(db)],
+        actor: Principal = Depends(principal),
+        database: AsyncDatabaseManager = Depends(db),
     ) -> list[dict]:
         return await list_artifacts(database, principal=actor)
 
     @app.get("/v1/artifacts/{artifact_id}", response_model=ArtifactResponse)
     async def get_artifact_route(
         artifact_id: UUID,
-        actor: Annotated[Principal, Depends(principal)],
-        database: Annotated[AsyncDatabaseManager, Depends(db)],
+        actor: Principal = Depends(principal),
+        database: AsyncDatabaseManager = Depends(db),
     ) -> dict:
         return await get_artifact(database, principal=actor, artifact_id=artifact_id)
 
     @app.post("/v1/present", response_model=PresentationResponse)
     async def create_presentation_route(
         request: Request,
-        actor: Annotated[Principal, Depends(principal)],
-        database: Annotated[AsyncDatabaseManager, Depends(db)],
+        actor: Principal = Depends(principal),
+        database: AsyncDatabaseManager = Depends(db),
     ) -> dict:
         payload = CreatePresentationRequest.model_validate(await request.json())
         return await mint_presentation_link(
@@ -179,8 +178,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     @app.post("/v1/present/{token}/revoke")
     async def revoke_presentation_route(
         token: str,
-        actor: Annotated[Principal, Depends(principal)],
-        database: Annotated[AsyncDatabaseManager, Depends(db)],
+        actor: Principal = Depends(principal),
+        database: AsyncDatabaseManager = Depends(db),
     ) -> dict[str, bool]:
         await revoke_presentation_link(database, principal=actor, token=token)
         return {"revoked": True}
@@ -188,7 +187,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     @app.get("/present/{token}", response_model=PublicPresentationResponse)
     async def present_route(
         token: str,
-        database: Annotated[AsyncDatabaseManager, Depends(db)],
+        database: AsyncDatabaseManager = Depends(db),
     ) -> dict:
         return await get_presented_envelope(database, token=token)
 
