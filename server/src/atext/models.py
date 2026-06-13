@@ -94,3 +94,17 @@ class PresentationResponse(BaseModel):
 class PublicPresentationResponse(BaseModel):
     a2ui: Any
     expires_at: datetime
+
+
+class SearchRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    query: str = Field(..., min_length=1, max_length=2_000)
+    depth: Literal["fast", "standard", "deep"] = "standard"
+    max_results: int = Field(default=5, ge=1, le=10)
+
+
+class SearchResponse(BaseModel):
+    query: str
+    depth: str
+    result: dict[str, Any]

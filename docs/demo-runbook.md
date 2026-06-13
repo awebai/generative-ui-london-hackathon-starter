@@ -1,66 +1,76 @@
-# GenUI rescope runbook
+# GenUI demo runbook — direct team-agent flow
 
-The human web UI is deliberately tiny:
+GenUI no longer runs a concierge/LangGraph sidecar. The human drives their own
+team agents (Claude Code, Pi, etc.). Those agents use real AWID team-auth calls
+to the server:
 
-- `/` explains the agent-first flow in the atext visual language.
-- `/present/<token>` renders one A2UI-formatted document/artifact without login.
+1. co-author text documents;
+2. search the live web through `POST /v1/search` (server-side LinkUp key);
+3. compose an A2UI view of the document/research;
+4. `POST /v1/artifacts` + `POST /v1/present` to mint a no-login URL;
+5. the human opens `/present/<token>` in the Next frontend.
 
-There is no web chat, no canvas, no `/fixed`, no `/dynamic`, and no `/catalog` route.
-Agents interact through `aw id request --team-auth`.
-
-## Flow for recording
-
-1. Agent A creates a team document:
-
-```bash
-export GENUI_ORIGIN=http://127.0.0.1:8200
-aw id request POST "$GENUI_ORIGIN/v1/documents" --team-auth --raw \
-  --body '{"slug":"agentic-research-memo","title":"Agentic UI research memo","body":"Agent A draft: live web research plus declarative A2UI should produce cited, shareable surfaces."}'
-```
-
-2. Agent B appends a new version:
+## Stack
 
 ```bash
-aw id request POST "$GENUI_ORIGIN/v1/documents/agentic-research-memo/versions" --team-auth --raw \
-  --body 'Agent B revision: add source-backed validation and mint a no-login /present link for the human.'
+# server: keep the AWID registry default for real teams unless explicitly testing locally
+cd /Users/juanre/prj/awebai/genui/server
+GENUI_SERVER_DATABASE_URL=postgresql://localhost/genui \
+GENUI_SERVER_PUBLIC_ORIGIN=http://127.0.0.1:8200 \
+GENUI_SERVER_PRESENTATION_ORIGIN=http://127.0.0.1:3000 \
+LINKUP_API_KEY=<real key> \
+uv run uvicorn atext.api:app --host 127.0.0.1 --port 8200
+
+# frontend renderer
+cd /Users/juanre/prj/awebai/genui
+SERVER_ORIGIN=http://127.0.0.1:8200 pnpm dev:ui --hostname 127.0.0.1 --port 3000
 ```
 
-3. Show attribution:
+No `agent/` process is required.
+
+## Team-agent commands
+
+Run from a workspace with a real AWID team certificate.
+
+Create a document:
 
 ```bash
-aw id request GET "$GENUI_ORIGIN/v1/documents/agentic-research-memo/versions" --team-auth --raw \
-  | jq '[.[] | {version_number, created_by_alias, created_by_address, certificate_id}]'
+aw id request POST http://127.0.0.1:8200/v1/documents --team-auth --raw \
+  --body '{"slug":"research-brief","title":"Research brief","body":"Agent A draft."}'
 ```
 
-4. An agent composes/stores an A2UI document artifact. The body below is short for recording; real agents can generate richer Markdown/cards/source lists.
+Append a version:
 
 ```bash
-aw id request POST "$GENUI_ORIGIN/v1/artifacts" --team-auth --raw \
-  --body '{"slug":"agentic-research-surface","a2ui":{"a2ui_operations":[{"version":"v0.9","createSurface":{"surfaceId":"doc","catalogId":"https://cpk-a2ui.local/catalogs/copilotkit/v1"}},{"version":"v0.9","updateComponents":{"surfaceId":"doc","components":[{"id":"root","component":"Stack","children":["card","sources"],"gap":"lg"},{"id":"card","component":"Card","tone":"lilac","child":"brief"},{"id":"brief","component":"Markdown","text":"# Agentic UI research memo\n\n**Agent A** drafted the memo. **Agent B** appended the validation request. This is renderer-safe A2UI, not model-written HTML."},{"id":"sources","component":"Card","child":"sourceText"},{"id":"sourceText","component":"Markdown","text":"## Sources\n\n1. [LinkUp](https://www.linkup.so/) — live web search for AI agents.\n2. [A2UI](https://a2ui.org/) — declarative UI surfaces across trust boundaries."}]}},{"version":"v0.9","updateDataModel":{"surfaceId":"doc","path":"/","value":{"slug":"agentic-research-memo"}}}]}}'
+aw id request POST http://127.0.0.1:8200/v1/documents/research-brief/versions --team-auth --raw \
+  --body 'Agent B revision with search findings.'
 ```
 
-5. Mint the present link using the `artifact_id` from step 4:
+Search live web via server-side LinkUp:
 
 ```bash
-aw id request POST "$GENUI_ORIGIN/v1/present" --team-auth --raw \
-  --body '{"artifact_id":"<artifact_id>","version":1}'
+aw id request POST http://127.0.0.1:8200/v1/search --team-auth --raw \
+  --body '{"query":"LinkUp web search API and CopilotKit A2UI","depth":"standard","max_results":5}'
 ```
 
-6. Open the returned URL in a fresh browser/incognito window. The human sees a document-shaped A2UI presentation, no login.
-
-7. Open a bogus token, e.g. `/present/not-a-real-token`; it should return the friendly 404.
-
-## Local checks
+Compose an A2UI doc view locally (example minimal markdown surface):
 
 ```bash
-pnpm typecheck
-pnpm build
-pnpm smoke
+A2UI='{"a2ui_operations":[{"createSurface":{"surfaceId":"doc-view","catalogId":"https://cpk-a2ui.local/catalogs/copilotkit/v1"}},{"updateComponents":{"surfaceId":"doc-view","components":[{"id":"root","component":"Stack","children":["title","body"],"gap":"md"},{"id":"title","component":"Heading","text":"Research brief","level":"1"},{"id":"body","component":"Markdown","text":"## What changed\\n\\nAgent A and Agent B co-authored this doc. LinkUp search supplied citations; this A2UI surface is what the human sees."}]}},{"updateDataModel":{"surfaceId":"doc-view","path":"/","value":{}}}]}'
 ```
 
-Expected Next routes after the rescope:
+Store artifact and mint present link:
+
+```bash
+ARTIFACT=$(aw id request POST http://127.0.0.1:8200/v1/artifacts --team-auth --raw \
+  --body "{\"a2ui\":$A2UI,\"slug\":\"research-brief-view\"}")
+ARTIFACT_ID=$(python3 -c 'import json,sys; print(json.load(sys.stdin)["artifact_id"])' <<<"$ARTIFACT")
+aw id request POST http://127.0.0.1:8200/v1/present --team-auth --raw \
+  --body "{\"artifact_id\":\"$ARTIFACT_ID\"}"
+```
+
+Open the returned `url` in a browser. Open a bogus token to show the 404:
 
 ```text
-/                  static landing
-/present/[token]   dynamic public presentation
+http://127.0.0.1:3000/present/bogus-token-for-demo
 ```
