@@ -55,6 +55,7 @@ from langgraph.checkpoint.memory import MemorySaver
 
 from src.catalog import CATALOG_ID, CATALOG_PROMPT
 from src.pdf_tools import query_pdf
+from src.present import present_to_human
 
 
 # ── Gemini prop-stripping fix ─────────────────────────────────────────────
@@ -269,15 +270,20 @@ Only if NO message in the history has ever contained a
       THIS turn>)`. The tool returns JSON with shape_hint, title,
       summary, data. Read it silently. DO NOT type the JSON anywhere.
    b. ONE call to `generate_a2ui()`. No arguments.
-   c. STOP. Do not call any more tools. Do not write any chat content.
-      Your final assistant message MUST be an empty string. The rendered
-      surface IS the user-visible answer.
+   c. If the user explicitly asked to share, present, or make a link for
+      the surface, call `present_to_human(surface_or_doc=<the exact JSON
+      string returned by generate_a2ui>)` once and return only the URL.
+      Otherwise STOP. Do not call any more tools. Do not write any chat
+      content. Your final assistant message MUST be an empty string. The
+      rendered surface IS the user-visible answer.
 
 ## Absolute hard rules. Breaking ANY of these causes a crash.
 
-- After `generate_a2ui` returns, you are DONE for this turn. Do not call
-  `query_pdf` again. Do not call `generate_a2ui` again. Do not write
-  anything except an empty string.
+- After `generate_a2ui` returns, you are DONE for this turn unless the user
+  explicitly asked for a share/presentation link. In that case call
+  `present_to_human` once with the exact JSON returned by `generate_a2ui`,
+  return only the URL, and then stop. Do not call `query_pdf` again. Do not
+  call `generate_a2ui` again.
 - NEVER include the query_pdf JSON in your reply.
 - NEVER include any tool's return value in your reply.
 - NEVER quote the PDF text, summarize the document, or echo any part of
@@ -313,8 +319,12 @@ above. Skip charts unless the user explicitly asked for data viz.
 
 ## Restating the loop guard
 
-- Max two tool calls per turn. query_pdf (once) + generate_a2ui (once).
-- After generate_a2ui returns, STOP IMMEDIATELY.
+- Max two tool calls per normal turn: query_pdf (once) + generate_a2ui
+  (once). A share/presentation-link request may make one additional
+  present_to_human call.
+- After generate_a2ui returns, STOP IMMEDIATELY unless the user explicitly
+  asked for a share/presentation link; then call present_to_human once and
+  return only the URL.
 - Never describe the surface in prose. The surface IS the answer.
 
 {CATALOG_PROMPT}
@@ -328,7 +338,7 @@ def build_dynamic_agent():
     # then). Online behavior is unchanged.
     return create_agent(
         model=_LazyRenderModel(),
-        tools=[query_pdf, generate_a2ui],
+        tools=[query_pdf, generate_a2ui, present_to_human],
         middleware=[CopilotKitMiddleware()],
         system_prompt=SYSTEM_PROMPT,
         checkpointer=MemorySaver(),
