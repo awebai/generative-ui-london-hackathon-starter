@@ -229,8 +229,11 @@ Wrap it for storage:
 ## Store and present the example
 
 Assuming `evidence/08-artifact-body.json` contains the storage body above and
-`SERVER_ORIGIN` points at the genui API (`https://api.atext.ai` deployed, or
-`http://127.0.0.1:8200` locally):
+`SERVER_ORIGIN` points at the genui API origin that matches
+`GENUI_SERVER_PUBLIC_ORIGIN` (`https://api.atext.ai` deployed, or
+`http://127.0.0.1:8200` locally). Open the human-facing `url` returned by
+`/v1/present`; do not derive it from `SERVER_ORIGIN` unless API and frontend
+share an origin:
 
 ```bash
 aw id request POST "$SERVER_ORIGIN/v1/artifacts" --team-auth --raw \

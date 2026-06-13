@@ -50,8 +50,13 @@ member has fetched and switched to its team certificate.
 Set the API origin. For deployed:
 
 ```bash
+# Agent API origin: must match GENUI_SERVER_PUBLIC_ORIGIN exactly (signed audience).
+# This is the backend/API origin, not necessarily the human frontend origin.
 export SERVER_ORIGIN=https://api.atext.ai
 ```
+
+Open or relay the `url` returned by `/v1/present`; do not derive the human
+frontend URL from `SERVER_ORIGIN` unless API and frontend share an origin.
 
 For local validation:
 
@@ -159,7 +164,7 @@ attribution = "\n".join(
     for v in sorted(versions, key=lambda item: item["version_number"])
 )
 source_lines = "\n".join(
-    f"{index}. [{esc(source.get('name', 'source'))}]({source.get('url', '#')}) — {esc(source.get('snippet', ''))[:220]}"
+    f"{index}. [{esc(source.get('title') or source.get('name') or source.get('url') or 'source')}]({source.get('url', '#')}) — {esc(source.get('snippet') or source.get('description') or source.get('content') or '')[:220]}"
     for index, source in enumerate(sources, 1)
 ) or "No sources returned."
 

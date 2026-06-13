@@ -135,8 +135,13 @@ the app scopes writes and reads to the verified certificate's `team_id`.
 For deployed use:
 
 ```bash
+# Agent API origin: must match GENUI_SERVER_PUBLIC_ORIGIN exactly (signed audience).
+# This is the backend/API origin, not necessarily the human frontend origin.
 export SERVER_ORIGIN=https://api.atext.ai
 ```
+
+Open or relay the `url` returned by `/v1/present`; do not derive the human
+frontend URL from `SERVER_ORIGIN` unless API and frontend share an origin.
 
 For local validation use the server origin:
 
@@ -253,7 +258,7 @@ attribution = "\n".join(
     for v in sorted(versions, key=lambda item: item["version_number"])
 )
 source_lines = "\n".join(
-    f"{index}. [{esc(source.get('name', 'source'))}]({source.get('url', '#')}) — {esc(source.get('snippet', ''))[:220]}"
+    f"{index}. [{esc(source.get('title') or source.get('name') or source.get('url') or 'source')}]({source.get('url', '#')}) — {esc(source.get('snippet') or source.get('description') or source.get('content') or '')[:220]}"
     for index, source in enumerate(sources, 1)
 )
 if not source_lines:
@@ -370,7 +375,9 @@ printf 'Presented view: %s\n' "$PRESENT_URL"
 ### 8. Check the public response
 
 ```bash
-curl -fsS "$SERVER_ORIGIN/present/$TOKEN"   | tee evidence/12-public-present-response.json   | jq '{keys: keys, expires_at, op_count: (.a2ui.a2ui_operations | length)}'
+curl -fsS "$SERVER_ORIGIN/present/$TOKEN" \
+  | tee evidence/12-public-present-response.json \
+  | jq '{keys: keys, expires_at, op_count: (.a2ui.a2ui_operations | length)}'
 ```
 
 The public server response exposes only:
