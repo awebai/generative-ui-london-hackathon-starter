@@ -144,6 +144,36 @@ ignored); public `/present` returns only the bound artifact with no
 team-identifying fields. These run as real cross-team e2e cases with two
 distinct provisioned teams.
 
+**Validated with AWID (Athena, 2026-06-13):** the per-team
+concierge-as-member model, cert validation, and the isolation rules above
+are confirmed sound — locked for v1. Hardening follow-ups she flagged,
+**deferred past the hackathon (production, not demo)**:
+
+- **Explicit attribution schema.** Record `authenticated_actor` (the
+  signer = concierge) distinctly from `originating_agent` (metadata only;
+  or `origin_signature = verified` if a signed origin intent is added
+  later). Never let UI/copy claim the origin agent signed the server write.
+- **Hosted vs BYOT provisioning.** The controller `aw id team add-member`
+  path is correct for BYOT (customer holds the controller key). For hosted
+  aweb-managed teams, provision the concierge member via the dashboard/API
+  hosted flow instead.
+- **Key custody.** One private signing key per team concierge; isolate key
+  material per team (KMS / secret namespace / container boundary) in any
+  multi-tenant process; never log private keys/certs/tokens; per-team
+  revocation/rotation that doesn't touch other teams.
+- **Real-deploy checklist (drop the demo shortcuts).** Verify namespace
+  control via the DNS TXT flow; create namespace/team with real controller
+  keys kept out of both the relying-party app and the concierge runtime
+  (backed up, KMS/operator-held, with rotation/revocation); publish/sync
+  team facts so verifiers resolve real AWID state; remove
+  `--skip-dns-verify` and local-registry assumptions from prod config.
+- **Present-link hardening.** Treat the capability token as bearer access:
+  high entropy + expiry + revocation (have) **plus rate limiting**;
+  responses expose no `team_id`/DIDs (have), but the artifact content
+  itself may reveal customer data; keep 404 (not 403) for
+  non-enumerability; cache negative/failed AWID states carefully and
+  revalidate on a bounded TTL so revocation applies promptly.
+
 ## Components and processes
 
 - **`server/`** — the atext spine as a standalone FastAPI relying party
