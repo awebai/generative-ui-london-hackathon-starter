@@ -8,7 +8,7 @@ export function CopyCommand({
   label = "copy",
 }: {
   command: string;
-  children: React.ReactNode;
+  children?: React.ReactNode;
   label?: string;
 }) {
   const [copied, setCopied] = useState(false);
@@ -21,7 +21,14 @@ export function CopyCommand({
 
   return (
     <span className="cmd-block" data-cmd>
-      <span className="cmd-lines">{children}</span>
+      <span className="cmd-lines">
+        {children ??
+          command.split("\n").map((line, index) => (
+            <span className="cmd-line" key={`${index}-${line}`}>
+              {line}
+            </span>
+          ))}
+      </span>
       <button
         className={`copy ${copied ? "copied" : ""}`}
         type="button"
