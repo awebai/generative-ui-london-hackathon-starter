@@ -58,6 +58,9 @@ export const useGenerativeUIExamples = () => {
   const ignoredTools = [
     "render_a2ui", // Rendered by A2UI streaming, not as a tool card
     "generate_a2ui", // Legacy: rendered by A2UI, not as a tool card
+    "render_research_surface", // Rendered by A2UI streaming, not as a tool card
+    "linkup", // Live search result can be large; the cited surface summarizes it
+    "present_to_human", // Final assistant response contains the safe URL
     "log_a2ui_event", // Internal A2UI event tracker
   ];
   useDefaultRenderTool({

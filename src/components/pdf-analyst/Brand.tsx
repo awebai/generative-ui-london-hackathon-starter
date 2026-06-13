@@ -2,7 +2,7 @@
 // CUSTOMIZATION SEAM #2 — Re-brand the shell
 // See HACKATHON.md §2 for the full recipe.
 //
-// The pdf-analyst chrome: Logo, SiteNav (top nav), PageHeader (landing
+// The genui concierge chrome: Logo, SiteNav (top nav), PageHeader (landing
 // hero), WorkspaceHeader (the /fixed and /dynamic workspace bar). Swap the
 // logo asset in public/brand/, rename the product, rewrite the hero copy.
 // Brand tints come from src/app/(pdf)/pdf-analyst.css (Seam #1).
@@ -30,8 +30,8 @@ export function SiteNav({
 }) {
   const links: Array<{ href: string; label: string; key: typeof active }> = [
     { href: "/", label: "Overview", key: "home" },
-    { href: "/fixed", label: "Fixed schema", key: "fixed" },
-    { href: "/dynamic", label: "Dynamic schema", key: "dynamic" },
+    { href: "/fixed", label: "Concierge", key: "fixed" },
+    { href: "/dynamic", label: "Research flow", key: "dynamic" },
     { href: "/catalog", label: "Catalog", key: "catalog" },
   ];
   return (
