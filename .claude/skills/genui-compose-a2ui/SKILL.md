@@ -228,10 +228,12 @@ Wrap it for storage:
 
 ## Store and present the example
 
-Assuming `evidence/08-artifact-body.json` contains the storage body above:
+Assuming `evidence/08-artifact-body.json` contains the storage body above and
+`SERVER_ORIGIN` points at the genui API (`https://api.atext.ai` deployed, or
+`http://127.0.0.1:8200` locally):
 
 ```bash
-aw id request POST "$GENUI_ORIGIN/v1/artifacts" --team-auth --raw \
+aw id request POST "$SERVER_ORIGIN/v1/artifacts" --team-auth --raw \
   --body-file evidence/08-artifact-body.json \
   | tee evidence/09-artifact-create-response.json
 ```
@@ -243,7 +245,7 @@ jq -n --arg artifact_id "$ARTIFACT_ID" '{artifact_id:$artifact_id, ttl_seconds:6
 ```
 
 ```bash
-aw id request POST "$GENUI_ORIGIN/v1/present" --team-auth --raw \
+aw id request POST "$SERVER_ORIGIN/v1/present" --team-auth --raw \
   --body-file evidence/10-present-request.json \
   | tee evidence/11-present-response.json
 ```

@@ -26,18 +26,36 @@ URL.
 - Relay only the final `url` from `POST /v1/present` to the human.
 - Treat the token as bearer access to one read-only artifact version.
 
+## Prerequisite: be in an AWID team
+
+Before using genui, this workspace must hold an AWID team certificate and have
+an active team. Check:
+
+```bash
+aw workspace status
+aw id cert show
+```
+
+If the team does not exist yet, follow the README `/llms.txt` "Create your
+team" BYOT on-ramp first: `aw id namespace prepare-controller` → publish DNS
+TXT → `aw id namespace check-txt` → `aw id team create` → `aw id create` for
+members → controller `aw id team add-member` → member `aw id team fetch-cert` →
+`aw id team switch <team>:<domain>`. Hosted aweb dashboard-provisioned teams
+also work; follow the dashboard's certificate instructions instead of BYOT
+controller commands.
+
 ## Quick workflow
 
 Set the API origin. For deployed:
 
 ```bash
-export GENUI_ORIGIN=https://atext.ai
+export SERVER_ORIGIN=https://api.atext.ai
 ```
 
 For local validation:
 
 ```bash
-export GENUI_ORIGIN=http://127.0.0.1:8200
+export SERVER_ORIGIN=http://127.0.0.1:8200
 ```
 
 Make repeatable slugs:
@@ -62,7 +80,7 @@ JSON
 ```
 
 ```bash
-aw id request POST "$GENUI_ORIGIN/v1/documents" --team-auth --raw \
+aw id request POST "$SERVER_ORIGIN/v1/documents" --team-auth --raw \
   --body-file evidence/01-document-create.json \
   | tee evidence/02-document-create-response.json
 ```
@@ -76,7 +94,7 @@ TXT
 ```
 
 ```bash
-aw id request POST "$GENUI_ORIGIN/v1/documents/$DOC_SLUG/versions" --team-auth --raw \
+aw id request POST "$SERVER_ORIGIN/v1/documents/$DOC_SLUG/versions" --team-auth --raw \
   --body-file evidence/03-document-revision.txt \
   | tee evidence/04-document-append-response.json
 ```
@@ -84,7 +102,7 @@ aw id request POST "$GENUI_ORIGIN/v1/documents/$DOC_SLUG/versions" --team-auth -
 Show attribution:
 
 ```bash
-aw id request GET "$GENUI_ORIGIN/v1/documents/$DOC_SLUG/versions" --team-auth --raw \
+aw id request GET "$SERVER_ORIGIN/v1/documents/$DOC_SLUG/versions" --team-auth --raw \
   | tee evidence/05-document-versions.json \
   | jq '[.[] | {version_number, created_by_alias, created_by_address, certificate_id}]'
 ```
@@ -102,7 +120,7 @@ JSON
 ```
 
 ```bash
-aw id request POST "$GENUI_ORIGIN/v1/search" --team-auth --raw \
+aw id request POST "$SERVER_ORIGIN/v1/search" --team-auth --raw \
   --body-file evidence/06-search-request.json \
   | tee evidence/07-search-response.json
 ```
@@ -174,7 +192,7 @@ PY
 ### 4. Store the artifact
 
 ```bash
-aw id request POST "$GENUI_ORIGIN/v1/artifacts" --team-auth --raw \
+aw id request POST "$SERVER_ORIGIN/v1/artifacts" --team-auth --raw \
   --body-file evidence/08-artifact-body.json \
   | tee evidence/09-artifact-create-response.json
 ```
@@ -188,7 +206,7 @@ jq -n --arg artifact_id "$ARTIFACT_ID" '{artifact_id:$artifact_id, ttl_seconds:6
 ```
 
 ```bash
-aw id request POST "$GENUI_ORIGIN/v1/present" --team-auth --raw \
+aw id request POST "$SERVER_ORIGIN/v1/present" --team-auth --raw \
   --body-file evidence/10-present-request.json \
   | tee evidence/11-present-response.json
 ```
@@ -211,7 +229,7 @@ open "$PRESENT_URL"
 
 ```bash
 TOKEN=$(jq -r '.token' evidence/11-present-response.json)
-curl -fsS "$GENUI_ORIGIN/present/$TOKEN" \
+curl -fsS "$SERVER_ORIGIN/present/$TOKEN" \
   | jq '{keys: keys, expires_at, op_count: (.a2ui.a2ui_operations | length)}'
 ```
 

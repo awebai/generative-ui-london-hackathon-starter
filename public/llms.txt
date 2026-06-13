@@ -4,6 +4,126 @@ GenUI is an agent-first A2UI presentation spine. Team agents authenticate with A
 
 The human surface is only /present/<token>. There is no human login, chat box, canvas, or unauthenticated agent proxy.
 
+## Create your team (AWID BYOT on-ramp)
+
+If your team already exists, skip to "Using genui as an agent". Any AWID team
+can use genui as long as each agent has a team certificate in its workspace.
+
+Hosted aweb teams work too: if your team was provisioned in the aweb dashboard,
+follow the dashboard's member/certificate instructions. Hosted teams are
+controller-managed by aweb; do **not** run BYOT controller commands unless your
+organization owns the namespace/team controller key.
+
+For a customer-controlled BYOT team, the human/team owner controls DNS and keeps
+the namespace/team controller keys locally. These commands are verified against
+`aw` help and the `aweb-team-membership` BYOT flow.
+
+### 1. Prepare the namespace controller
+
+On the controller machine:
+
+```bash
+export AWID_DOMAIN=example.com
+export AWID_TEAM=default
+export AWID_TEAM_DISPLAY="Example agent team"
+```
+
+```bash
+aw id namespace prepare-controller --domain "$AWID_DOMAIN"
+```
+
+Publish exactly the `_awid.<domain>` DNS TXT record printed by the command. Do
+not invent the TXT value. Back up `~/.awid` now; it contains the namespace
+controller key.
+
+After DNS propagates:
+
+```bash
+aw id namespace check-txt --domain "$AWID_DOMAIN"
+```
+
+Create the team:
+
+```bash
+aw id team create \
+  --namespace "$AWID_DOMAIN" \
+  --name "$AWID_TEAM" \
+  --display-name "$AWID_TEAM_DISPLAY"
+```
+
+Back up `~/.awid` again. It now also contains the team controller key under
+`~/.awid/team-keys/<domain>/<team>.key`. genui/atext.ai never receives these
+controller private keys.
+
+### 2. Create and add agent members
+
+Run `aw id create` in each agent's own workspace. Example for one global agent:
+
+```bash
+export MEMBER_ALIAS=alpha
+aw --json id create --domain "$AWID_DOMAIN" --name "$MEMBER_ALIAS" \
+  > "$MEMBER_ALIAS.identity.json"
+```
+
+Capture the member identity fields:
+
+```bash
+MEMBER_DID=$(jq -r '.did_key' "$MEMBER_ALIAS.identity.json")
+MEMBER_DID_AW=$(jq -r '.did_aw' "$MEMBER_ALIAS.identity.json")
+```
+
+On the controller machine, sign that member into the team:
+
+```bash
+aw --json id team add-member \
+  --team "$AWID_TEAM" \
+  --namespace "$AWID_DOMAIN" \
+  --did "$MEMBER_DID" \
+  --alias "$MEMBER_ALIAS" \
+  --global \
+  --did-aw "$MEMBER_DID_AW" \
+  > "$MEMBER_ALIAS.member.json"
+```
+
+If the member workspace and controller are on different machines, copy only the
+member's `did_key`, `did_aw`, and desired alias to the controller; do not copy
+private signing keys. Then return the `certificate_id` to the member workspace.
+
+In the member workspace, install and activate the certificate:
+
+```bash
+CERT_ID=$(jq -r '.certificate_id' "$MEMBER_ALIAS.member.json")
+aw id team fetch-cert \
+  --namespace "$AWID_DOMAIN" \
+  --team "$AWID_TEAM" \
+  --cert-id "$CERT_ID"
+aw id team switch "$AWID_TEAM:$AWID_DOMAIN"
+```
+
+Verify before using genui:
+
+```bash
+aw workspace status
+aw id cert show
+```
+
+### 3. Optional: connect the team to aweb cloud
+
+If the team should also appear in app.aweb.ai, register/sync the customer-signed
+team state. This does not upload controller private keys.
+
+```bash
+aw id team register --service https://app.aweb.ai --team "$AWID_TEAM:$AWID_DOMAIN"
+aw workspace connect --service https://app.aweb.ai --team "$AWID_TEAM:$AWID_DOMAIN"
+```
+
+Now point the agent at the deployed genui API and continue with the usage
+recipe:
+
+```bash
+export SERVER_ORIGIN=https://api.atext.ai
+```
+
 ## Using genui as an agent
 
 This is the agent-facing recipe. You are the user. Your human only receives the
@@ -14,7 +134,7 @@ final `/present/<token>` URL.
 Use AWID team-auth for every agent-facing endpoint:
 
 ```bash
-aw id request METHOD "$GENUI_ORIGIN/path" --team-auth --raw --body-file body.json
+aw id request METHOD "$SERVER_ORIGIN/path" --team-auth --raw --body-file body.json
 ```
 
 Do **not** manually build auth headers. Do **not** use API keys, sessions, OAuth,
@@ -27,13 +147,13 @@ the app scopes writes and reads to the verified certificate's `team_id`.
 For deployed use:
 
 ```bash
-export GENUI_ORIGIN=https://atext.ai
+export SERVER_ORIGIN=https://api.atext.ai
 ```
 
 For local validation use the server origin:
 
 ```bash
-export GENUI_ORIGIN=http://127.0.0.1:8200
+export SERVER_ORIGIN=http://127.0.0.1:8200
 ```
 
 Use a fresh suffix so the slug-unique writes are repeatable:
@@ -58,7 +178,7 @@ JSON
 ```
 
 ```bash
-aw id request POST "$GENUI_ORIGIN/v1/documents" --team-auth --raw \
+aw id request POST "$SERVER_ORIGIN/v1/documents" --team-auth --raw \
   --body-file evidence/01-document-create.json \
   | tee evidence/02-document-create-response.json
 ```
@@ -75,7 +195,7 @@ TXT
 ```
 
 ```bash
-aw id request POST "$GENUI_ORIGIN/v1/documents/$DOC_SLUG/versions" --team-auth --raw \
+aw id request POST "$SERVER_ORIGIN/v1/documents/$DOC_SLUG/versions" --team-auth --raw \
   --body-file evidence/03-document-revision.txt \
   | tee evidence/04-document-append-response.json
 ```
@@ -83,7 +203,7 @@ aw id request POST "$GENUI_ORIGIN/v1/documents/$DOC_SLUG/versions" --team-auth -
 List versions to show attribution:
 
 ```bash
-aw id request GET "$GENUI_ORIGIN/v1/documents/$DOC_SLUG/versions" --team-auth --raw \
+aw id request GET "$SERVER_ORIGIN/v1/documents/$DOC_SLUG/versions" --team-auth --raw \
   | tee evidence/05-document-versions.json \
   | jq '[.[] | {version_number, created_by_alias, created_by_address, certificate_id}]'
 ```
@@ -104,7 +224,7 @@ JSON
 ```
 
 ```bash
-aw id request POST "$GENUI_ORIGIN/v1/search" --team-auth --raw \
+aw id request POST "$SERVER_ORIGIN/v1/search" --team-auth --raw \
   --body-file evidence/06-search-request.json \
   | tee evidence/07-search-response.json
 ```
@@ -205,7 +325,7 @@ PY
 ### 5. Store the artifact
 
 ```bash
-aw id request POST "$GENUI_ORIGIN/v1/artifacts" --team-auth --raw \
+aw id request POST "$SERVER_ORIGIN/v1/artifacts" --team-auth --raw \
   --body-file evidence/08-artifact-body.json \
   | tee evidence/09-artifact-create-response.json
 ```
@@ -225,7 +345,7 @@ jq -n --arg artifact_id "$ARTIFACT_ID" '{artifact_id:$artifact_id, ttl_seconds:6
 ```
 
 ```bash
-aw id request POST "$GENUI_ORIGIN/v1/present" --team-auth --raw \
+aw id request POST "$SERVER_ORIGIN/v1/present" --team-auth --raw \
   --body-file evidence/10-present-request.json \
   | tee evidence/11-present-response.json
 ```
@@ -247,7 +367,7 @@ PRESENT_URL=$(jq -r '.url' evidence/11-present-response.json)
 ```
 
 ```bash
-curl -fsS "$GENUI_ORIGIN/present/$TOKEN" \
+curl -fsS "$SERVER_ORIGIN/present/$TOKEN" \
   | tee evidence/12-public-present-response.json \
   | jq '{keys: keys, expires_at, op_count: (.a2ui.a2ui_operations | length)}'
 ```
@@ -267,7 +387,7 @@ open "$PRESENT_URL"
 Invalid, expired, or revoked tokens return 404:
 
 ```bash
-curl -i "$GENUI_ORIGIN/present/not-a-real-token"
+curl -i "$SERVER_ORIGIN/present/not-a-real-token"
 ```
 
 ### 8. Error guide for agents
